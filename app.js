@@ -7,6 +7,15 @@ const state = {
   ]
 };
 
+function hydrateParsedStandard() {
+  const parsed = window.STDFORGE_STANDARD?.standard;
+  if (!parsed) return;
+  document.querySelectorAll('[data-standard-number]').forEach(element => { element.textContent = parsed.number; });
+  document.querySelectorAll('[data-standard-title]').forEach(element => { element.textContent = parsed.title; });
+  document.querySelectorAll('[data-page-count]').forEach(element => { element.textContent = parsed.pageCount; });
+  document.querySelectorAll('[data-block-count]').forEach(element => { element.textContent = parsed.blocks; });
+}
+
 const toast = document.querySelector('#toast');
 function notify(message) {
   toast.querySelector('span').textContent = message;
@@ -94,4 +103,5 @@ document.querySelector('#runFlow').addEventListener('click', () => {
   }, 750);
 });
 
+hydrateParsedStandard();
 lucide.createIcons();

@@ -31,7 +31,7 @@
 
       <main>
         <header class="topbar">
-          <div class="crumb"><span>标准编制</span><i data-lucide="chevron-right"></i><strong>GB/T 46274-2025</strong></div>
+          <div class="crumb"><span>标准编制</span><i data-lucide="chevron-right"></i><strong data-standard-number>GB/T 46274-2025</strong></div>
           <div class="top-actions">
             <button class="icon-button" aria-label="通知" title="通知"><i data-lucide="bell"></i><em></em></button>
             <button class="button secondary" id="openImport"><i data-lucide="upload"></i>导入文件</button>
@@ -41,7 +41,7 @@
 
         <section class="view active" id="workspace">
           <div class="page-heading">
-            <div><p class="eyebrow">标准工作台</p><h1>二手家用电器产品品质鉴定规范</h1><p class="subtle">GB/T 46274-2025 · 洗衣机 · 当前版本 v0.3 草案</p></div>
+            <div><p class="eyebrow">标准工作台</p><h1 data-standard-title>二手家用电器产品品质鉴定规范</h1><p class="subtle"><span data-standard-number>GB/T 46274-2025</span> · 洗衣机 · 当前版本 v0.3 草案</p></div>
             <div class="status-group"><span class="status amber">待专家复核</span><span class="last-sync"><i data-lucide="refresh-cw"></i>同步于 09:42</span></div>
           </div>
 
@@ -60,7 +60,7 @@
           <div class="dashboard-grid">
             <section class="panel standard-panel">
               <div class="panel-header"><div><p class="panel-kicker">模块一 · 标准协同编辑</p><h2>条款结构化与规范性审核</h2></div><button class="text-button" id="showStandard">打开编制视图 <i data-lucide="arrow-up-right"></i></button></div>
-              <div class="standard-meta"><span><i data-lucide="file-text"></i>15 页原始文件</span><span><i data-lucide="list-tree"></i>24 个结构单元</span><span><i data-lucide="users"></i>3 位协作人</span></div>
+              <div class="standard-meta"><span><i data-lucide="file-text"></i><span data-page-count>15</span> 页原始文件</span><span><i data-lucide="list-tree"></i><span data-block-count>24</span> 个解析块</span><span><i data-lucide="users"></i>3 位协作人</span></div>
               <div class="clause-preview">
                 <div class="clause-number">7.2</div>
                 <div><div class="clause-title">安全性检查</div><p>二手洗衣机的安全性应符合 GB/T 4706.1—2024 的规定。</p><div class="clause-tags"><span>规范性条款</span><span>引用 1 项</span></div></div>
@@ -121,6 +121,7 @@
     <dialog id="importDialog"><form method="dialog" class="modal"><div class="modal-header"><div><p class="panel-kicker">标准文件导入</p><h2>创建标准工作项</h2></div><button class="icon-button" value="cancel" aria-label="关闭"><i data-lucide="x"></i></button></div><label class="dropzone" for="standardFile"><i data-lucide="file-up"></i><strong>选择 PDF 或 DOCX 文件</strong><span>支持原始标准、草案及编制说明</span><input id="standardFile" type="file" accept=".pdf,.docx" /></label><div class="modal-fields"><label>来源链接<input id="sourceUrl" value="https://openstd.samr.gov.cn/bzgk/std/newGbInfo?..." /></label><label>标准编号<input id="standardNumber" value="GB/T 46274-2025" /></label></div><div class="modal-footer"><button class="button secondary" value="cancel">取消</button><button class="button primary" id="importStandard" value="default"><i data-lucide="file-cog"></i>导入并解析</button></div></form></dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"><i data-lucide="check-circle-2"></i><span>操作已完成</span></div>
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="data/standard-data.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

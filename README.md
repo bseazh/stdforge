@@ -20,6 +20,18 @@ open index.html
 
 也可以用任意静态 HTTP 服务打开目录。
 
+## MinerU PDF 解析
+
+MinerU 令牌只能通过环境变量传入，禁止写入仓库、前端、脚本或任何文件。解析结果默认存放在被 Git 忽略的 `data/mineru/` 中。
+
+```bash
+MINERU_TOKEN='<your-token>' node scripts/mineru-parse.mjs /absolute/path/to/standard.pdf --output data/mineru/GBT46274-2025
+unzip -oq data/mineru/GBT46274-2025/mineru-result.zip -d data/mineru/GBT46274-2025
+node scripts/build-standard-data.mjs data/mineru/GBT46274-2025 data/standard-data.js
+```
+
+`data/standard-data.js` 是页面可直接加载的轻量解析摘要；它保存标准编号、标题、页数、解析块数、章节标题和引用文件，不提交原始 PDF、完整 Markdown、图像或 MinerU ZIP。
+
 ## 目录
 
 ```text

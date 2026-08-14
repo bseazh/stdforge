@@ -1,0 +1,6 @@
+# MinerU results include source documents and generated binary assets.
+data/mineru/
+
+# Local secrets must never enter the repository.
+.env
+.env.*
