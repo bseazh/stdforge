@@ -114,6 +114,33 @@ jobs:
           exit 1
           REMOTE
 
+      - name: Restart the module two analysis service
+        env:
+          DEPLOY_PATH: /home/ubuntu/Project/stdforge
+        run: |
+          ssh "$DEPLOY_TARGET" "DEPLOY_PATH='$DEPLOY_PATH' sh -s" <<'REMOTE'
+          set -eu
+          cd "$DEPLOY_PATH"
+          mkdir -p module2/.runtime
+          pkill -f 'node .*module2/std-crawler/serve-demo\.mjs' 2>/dev/null || true
+          if [ -f module2/.runtime/server.pid ]; then
+            previous_pid=$(cat module2/.runtime/server.pid)
+            if kill -0 "$previous_pid" 2>/dev/null; then kill "$previous_pid"; fi
+          fi
+          nohup env HOST=0.0.0.0 PORT=5277 \
+            STD_LLM_BASE_URL="${LLM_BASE_URL:-}" \
+            STD_LLM_API_KEY="${LLM_API_KEY:-}" \
+            STD_LLM_MODEL="${LLM_MODEL:-}" \
+            node module2/std-crawler/serve-demo.mjs > module2/.runtime/server.log 2>&1 &
+          echo $! > module2/.runtime/server.pid
+          for attempt in 1 2 3 4 5; do
+            sleep 2
+            if curl -fsS http://127.0.0.1:5277/api/health; then exit 0; fi
+          done
+          cat module2/.runtime/server.log
+          exit 1
+          REMOTE
+
       - name: Apply the online reverse proxy configuration
         env:
           DEPLOY_PATH: /home/ubuntu/Project/stdforge

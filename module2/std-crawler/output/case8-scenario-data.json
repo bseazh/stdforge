@@ -1,0 +1,661 @@
+{
+  "query": {
+    "keywords": [
+      "冰箱",
+      "保鲜",
+      "食品保鲜",
+      "制冷",
+      "家用电器",
+      "家电"
+    ],
+    "types": [
+      "gb",
+      "hb",
+      "db",
+      "plan"
+    ],
+    "startDate": "2021-01-01",
+    "endDate": "2026-08-15"
+  },
+  "groupRules": [
+    {
+      "group": "海信系",
+      "keywords": [
+        "海信"
+      ],
+      "region": "广东省"
+    },
+    {
+      "group": "美的",
+      "keywords": [
+        "美的"
+      ],
+      "region": "广东省"
+    },
+    {
+      "group": "海尔",
+      "keywords": [
+        "海尔"
+      ],
+      "region": "山东省"
+    },
+    {
+      "group": "格力",
+      "keywords": [
+        "格力"
+      ],
+      "region": "广东省"
+    },
+    {
+      "group": "美菱",
+      "keywords": [
+        "美菱",
+        "华凌"
+      ],
+      "region": "安徽省"
+    }
+  ],
+  "groupStats": {
+    "海信系": {
+      "region": "广东省",
+      "leading": 0,
+      "participating": 9,
+      "standards": [
+        "GB/T 46497-2025",
+        "GB/T 4706.126-2025",
+        "GB 12021.2-2025",
+        "GB/T 37877-2025",
+        "GB/T 21551.4-2024",
+        "GB/T 44494-2024",
+        "GB/T 26689-2024",
+        "GB/T 42395.1-2023",
+        "GB/T 9098-2021"
+      ]
+    },
+    "美的": {
+      "region": "广东省",
+      "leading": 0,
+      "participating": 7,
+      "standards": [
+        "GB 12021.2-2025",
+        "GB/T 37877-2025",
+        "GB/T 44494-2024",
+        "GB/T 26689-2024",
+        "GB/T 42395.1-2023",
+        "DB3401/T 257—2022",
+        "GB/T 9098-2021"
+      ]
+    },
+    "海尔": {
+      "region": "山东省",
+      "leading": 2,
+      "participating": 5,
+      "standards": [
+        "GB 12021.2-2025",
+        "GB/T 37877-2025",
+        "GB/T 21551.4-2024",
+        "GB/T 44494-2024",
+        "GB/T 9098-2021"
+      ]
+    },
+    "格力": {
+      "region": "广东省",
+      "leading": 0,
+      "participating": 3,
+      "standards": [
+        "GB 12021.2-2025",
+        "GB/T 44494-2024",
+        "GB/T 9098-2021"
+      ]
+    },
+    "美菱": {
+      "region": "安徽省",
+      "leading": 0,
+      "participating": 8,
+      "standards": [
+        "GB/T 46497-2025",
+        "GB/T 4706.126-2025",
+        "GB 12021.2-2025",
+        "GB/T 37877-2025",
+        "GB/T 21551.4-2024",
+        "GB/T 44494-2024",
+        "DB3401/T 257—2022",
+        "GB/T 9098-2021"
+      ]
+    }
+  },
+  "techAreas": {
+    "其他": 9,
+    "安全": 1,
+    "保鲜": 5,
+    "能效": 1,
+    "化霜": 1
+  },
+  "yearTrend": {
+    "2021": 2,
+    "2022": 1,
+    "2023": 2,
+    "2024": 5,
+    "2025": 6
+  },
+  "tcCount": {
+    "全国家用电器标准化技术委员会": 6,
+    "全国能源基础与管理标准化技术委员会": 1,
+    "全国塑料制品标准化技术委员会": 1,
+    "其他": 1,
+    "全国人类工效学标准化技术委员会": 1,
+    "合肥市经济和信息化局": 1
+  },
+  "standards": [
+    {
+      "standardNo": "GB/T 46497-2025",
+      "title": "二手家用电器产品品质鉴定规范 电冰箱和房间空调器",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2025-10-05",
+      "draftUnits": [
+        "中国家用电器研究院",
+        "海信空调有限公司",
+        "合肥华凌股份有限公司",
+        "中家院（北京）检测认证有限公司",
+        "安徽中认倍佳科技有限公司",
+        "山东省产品质量检验研究院",
+        "威凯检测技术有限公司",
+        "中认英泰检测技术有限公司",
+        "宁波余通电器有限公司"
+      ],
+      "draftCount": 9,
+      "groups": [
+        "海信系",
+        "美菱"
+      ],
+      "leadingGroup": "",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "本文件规定了二手电冰箱和房间空调器品质鉴定的要求，适用于二手电冰箱和房间空调器的品质鉴定。",
+      "tc": "全国家用电器标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=40B74A27FBF6BD79E06397BE0A0AB048"
+    },
+    {
+      "standardNo": "QB/T 8164-2025",
+      "title": "嵌入式电冰箱用铰链",
+      "domain": "行业标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2025-08-19",
+      "draftUnits": [],
+      "draftCount": 0,
+      "groups": [],
+      "leadingGroup": "",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "",
+      "tc": "",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/hb/search/stdHBDetailed?id=4C8E1F90E8AF2022E06397BE0A0A5A4C"
+    },
+    {
+      "standardNo": "GB/T 4706.126-2025",
+      "title": "家用和类似用途电器的安全 第126部分：葡萄酒保鲜分酒机的特殊要求",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2025-08-01",
+      "draftUnits": [
+        "浙江爱得沃电子科技有限公司",
+        "合肥华凌股份有限公司",
+        "中国家用电器研究院",
+        "宁波市标准化研究院",
+        "海信冰箱有限公司",
+        "中家院（北京）检测认证有限公司",
+        "浙江心连心电子科技有限公司",
+        "中山市越海电器有限公司",
+        "珠海市科力通电器有限公司",
+        "上海立珀生物科技有限公司",
+        "佳合（浙江）检验检测有限公司"
+      ],
+      "draftCount": 11,
+      "groups": [
+        "海信系",
+        "美菱"
+      ],
+      "leadingGroup": "",
+      "techAreas": [
+        "安全",
+        "保鲜"
+      ],
+      "scope": "本标准规定了家用和类似用途葡萄酒保鲜分酒机的安全特殊要求。",
+      "tc": "全国家用电器标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=3B46A026CBD3469CE06397BE0A0AEEB8"
+    },
+    {
+      "standardNo": "GB 12021.2-2025",
+      "title": "家用电冰箱耗电量限定值及能效等级",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2025-05-30",
+      "draftUnits": [
+        "中国标准化研究院",
+        "青岛海尔电冰箱有限公司",
+        "合肥美的电冰箱有限公司",
+        "博西华家用电器有限公司",
+        "海信冰箱有限公司",
+        "长虹美菱股份有限公司",
+        "无锡松下冷机有限公司",
+        "中家院（北京）检测认证有限公司",
+        "美的集团股份有限公司",
+        "海信容声(广东)冰箱有限公司",
+        "珠海格力电器股份有限公司",
+        "安徽美芝制冷设备有限公司",
+        "苏州三星电子有限公司",
+        "威凯检测技术有限公司",
+        "合肥雪祺电气股份有限公司",
+        "小米智能家电（武汉）有限公司",
+        "广州工控万宝集团压缩机有限公司",
+        "福建赛特新材股份有限公司",
+        "天津商业大学",
+        "安徽尊贵电器集团有限公司",
+        "广东奥马冰箱有限公司",
+        "浙江三花智能控制股份有限公司",
+        "加西贝拉压缩机有限公司",
+        "TCL家用电器（合肥）有限公司",
+        "河南新飞智家科技有限公司",
+        "佛山市艾凯控股集团有限公司",
+        "四川迈科隆真空新材料有限公司",
+        "澳柯玛股份有限公司",
+        "宁波方太厨具有限公司",
+        "莱茵技术-商检（青岛）有限公司",
+        "合肥通用机电产品检测院有限公司"
+      ],
+      "draftCount": 31,
+      "groups": [
+        "海信系",
+        "美的",
+        "海尔",
+        "格力",
+        "美菱"
+      ],
+      "leadingGroup": "",
+      "techAreas": [
+        "能效"
+      ],
+      "scope": "本标准规定了家用电冰箱耗电量限定值及能效等级要求，适用于家用电冰箱。",
+      "tc": "全国能源基础与管理标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=36A29D07E29DD444E06397BE0A0ACC4C"
+    },
+    {
+      "standardNo": "GB/T 37877-2025",
+      "title": "智能家用电器的智能化技术 电冰箱的特殊要求",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2025-05-30",
+      "draftUnits": [
+        "青岛海尔电冰箱有限公司",
+        "中家院（北京）检测认证有限公司",
+        "海信容声（广东）冰箱有限公司",
+        "长虹美菱股份有限公司",
+        "合肥美的电冰箱有限公司",
+        "博西华家用电器有限公司",
+        "无锡松下冷机有限公司",
+        "南京海关纺织工业产品检测中心",
+        "中国家用电器研究院",
+        "澳柯玛股份有限公司"
+      ],
+      "draftCount": 10,
+      "groups": [
+        "海信系",
+        "美的",
+        "海尔",
+        "美菱"
+      ],
+      "leadingGroup": "海尔",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "本文件规定了智能家用电冰箱的智能化技术的特殊要求。",
+      "tc": "全国家用电器标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=36DE96AA3F47CD71E06397BE0A0A23D9"
+    },
+    {
+      "standardNo": "QB/T 8144-2025",
+      "title": "家用电冰箱蒸发器容霜能力要求和评价方法",
+      "domain": "行业标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2025-04-10",
+      "draftUnits": [],
+      "draftCount": 0,
+      "groups": [],
+      "leadingGroup": "",
+      "techAreas": [
+        "化霜"
+      ],
+      "scope": "规定了家用电冰箱蒸发器容霜能力的要求和评价方法。",
+      "tc": "",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/hb/search/stdHBDetailed?id=47280894588087C2E06397BE0A0A5B06"
+    },
+    {
+      "standardNo": "GB/T 21551.4-2024",
+      "title": "家用和类似用途电器的抗菌、除菌、净化功能 第4部分：电冰箱的特殊要求",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "即将实施",
+      "publishedAt": "2024-12-31",
+      "draftUnits": [
+        "中国家用电器研究院",
+        "海尔智家股份有限公司",
+        "合肥华凌股份有限公司",
+        "海信容声（广东）冰箱有限公司",
+        "长虹美菱股份有限公司",
+        "安徽中认倍佳科技有限公司",
+        "合肥晶弘电器有限公司",
+        "博西华家用电器有限公司",
+        "苏州三星电子有限公司",
+        "松下电器研究开发（苏州）有限公司",
+        "TCL家用电器（合肥）有限公司",
+        "佛山市顺德区阿波罗环保器材有限公司",
+        "山东雪圣电器有限公司",
+        "中家院（北京）检测认证有限公司"
+      ],
+      "draftCount": 14,
+      "groups": [
+        "海信系",
+        "海尔",
+        "美菱"
+      ],
+      "leadingGroup": "",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "规定了家用和类似用途电冰箱的抗菌、除菌、净化功能要求及试验方法。",
+      "tc": "全国家用电器标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=2AD0270638BC091BE06397BE0A0A2D62"
+    },
+    {
+      "standardNo": "DB3411/T 0053-2024",
+      "title": "《家用电冰箱保鲜货架期评价方法》",
+      "domain": "地方标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2024-12-10",
+      "draftUnits": [],
+      "draftCount": 0,
+      "groups": [],
+      "leadingGroup": "",
+      "techAreas": [
+        "保鲜"
+      ],
+      "scope": "规定家用电冰箱保鲜货架期的评价方法。",
+      "tc": "",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/db/search/stdDBDetailed?id=2973B53DF384C29BE06397BE0A0A3C00"
+    },
+    {
+      "standardNo": "QB/T 8099-2024",
+      "title": "葡萄酒保鲜分酒机",
+      "domain": "行业标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2024-12-10",
+      "draftUnits": [],
+      "draftCount": 0,
+      "groups": [],
+      "leadingGroup": "",
+      "techAreas": [
+        "保鲜"
+      ],
+      "scope": "",
+      "tc": "",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/hb/search/stdHBDetailed?id=3098DCCBD3E90BE1E06397BE0A0AA66B"
+    },
+    {
+      "standardNo": "GB/T 44494-2024",
+      "title": "家用和类似用途制冷器具 食品保鲜",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2024-09-29",
+      "draftUnits": [
+        "青岛海尔电冰箱有限公司",
+        "中国家用电器研究院",
+        "海信冰箱有限公司",
+        "珠海格力电器股份有限公司",
+        "长虹美菱股份有限公司",
+        "中家院（北京）检测认证有限公司",
+        "佛山市顺德区阿波罗环保器材有限公司",
+        "TCL瑞智（惠州）制冷设备有限公司",
+        "无锡松下冷机有限公司",
+        "合肥美的电冰箱有限公司",
+        "冰山松洋冷链（大连）股份有限公司",
+        "澳柯玛股份有限公司",
+        "博西华家用电器有限公司",
+        "安徽中认倍佳科技有限公司",
+        "广东凯得智能科技股份有限公司",
+        "宁波奥克斯电气股份有限公司",
+        "宁波方太厨具有限公司",
+        "西安庆安制冷设备股份有限公司",
+        "西安交通大学",
+        "北京工业大学",
+        "威凯检测技术有限公司",
+        "安徽省产品质量监督检验研究院",
+        "惠而浦（中国）股份有限公司"
+      ],
+      "draftCount": 23,
+      "groups": [
+        "海信系",
+        "美的",
+        "海尔",
+        "格力",
+        "美菱"
+      ],
+      "leadingGroup": "海尔",
+      "techAreas": [
+        "保鲜"
+      ],
+      "scope": "适用于家用和类似用途制冷器具食品保鲜性能的测定与评价。",
+      "tc": "全国家用电器标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=234D7936AAB4E194E06397BE0A0AA0A9"
+    },
+    {
+      "standardNo": "GB/T 26689-2024",
+      "title": "冰箱、冰柜用硬质聚氨酯泡沫塑料",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2024-08-23",
+      "draftUnits": [
+        "北京工商大学",
+        "海信容声（广东）冰箱有限公司",
+        "红宝丽集团股份有限公司",
+        "万华化学集团股份有限公司",
+        "河北亚东化工集团有限公司",
+        "天长市伯士的环保新材料有限公司",
+        "美的集团股份有限公司",
+        "山东澳帆新材料有限公司",
+        "中化蓝天霍尼韦尔新材料有限公司",
+        "杭州崇耀科技发展有限公司",
+        "绍兴市辰星聚氨酯有限公司",
+        "山东亿博润新材料科技有限公司",
+        "山东联创聚合物有限公司",
+        "北京建筑材料检验研究院股份有限公司",
+        "江苏江化聚氨酯产品质量检测有限公司",
+        "中山大学",
+        "山东大学",
+        "运城学院"
+      ],
+      "draftCount": 18,
+      "groups": [
+        "海信系",
+        "美的"
+      ],
+      "leadingGroup": "",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "适用于冰箱、冰柜用硬质聚氨酯泡沫塑料。",
+      "tc": "全国塑料制品标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=208E903AB6B979F3E06397BE0A0AB2B9"
+    },
+    {
+      "standardNo": "QC/T 1196-2023",
+      "title": "车载冰箱",
+      "domain": "行业标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2023-04-21",
+      "draftUnits": [],
+      "draftCount": 0,
+      "groups": [],
+      "leadingGroup": "",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "",
+      "tc": "其他",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/hb/search/stdHBDetailed?id=0DEE2226BB63C713E06397BE0A0AF124"
+    },
+    {
+      "standardNo": "GB/T 42395.1-2023",
+      "title": "人类工效学 家电噪声声品质限值和测试方法 第1部分：冰箱",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2023-03-17",
+      "draftUnits": [
+        "中国标准化研究院",
+        "合肥美的电冰箱有限公司",
+        "海信冰箱有限公司",
+        "北京语言大学",
+        "中标能效科技(青岛)有限公司"
+      ],
+      "draftCount": 5,
+      "groups": [
+        "海信系",
+        "美的"
+      ],
+      "leadingGroup": "",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "规定了家电噪声声品质限值和测试方法，适用于冰箱。",
+      "tc": "全国人类工效学标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=F78920660FF1B223E05397BE0A0AE533"
+    },
+    {
+      "standardNo": "DB3401/T 257—2022",
+      "title": "绿色制造评价 电冰箱、空调器和洗衣机",
+      "domain": "地方标准",
+      "planForm": "",
+      "status": "废止",
+      "publishedAt": "2022-11-03",
+      "draftUnits": [
+        "安徽嘉睿科技有限公司",
+        "合肥美的电冰箱有限公司",
+        "合肥产品质量监督检验研究院",
+        "TCL家用电器(合肥)有限公司",
+        "合肥美的洗衣机有限公司",
+        "长虹美菱股份有限公司",
+        "合肥华凌股份有限公司",
+        "安徽美芝制冷设备有限公司"
+      ],
+      "draftCount": 8,
+      "groups": [
+        "美的",
+        "美菱"
+      ],
+      "leadingGroup": "",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "适用于电冰箱、空调器和洗衣机的绿色制造评价。",
+      "tc": "合肥市经济和信息化局",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/db/search/stdDBDetailed?id=ED7D8DFF04B7CDF4E05397BE0A0AE11B"
+    },
+    {
+      "standardNo": "GB/T 9098-2021",
+      "title": "电冰箱用全封闭型电动机-压缩机",
+      "domain": "国家标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2021-10-11",
+      "draftUnits": [
+        "加西贝拉压缩机有限公司",
+        "中国家用电器研究院",
+        "黄石东贝压缩机有限公司",
+        "青岛海尔电冰箱有限公司",
+        "长虹美菱股份有限公司",
+        "海信（山东）冰箱有限公司",
+        "合肥美的电冰箱有限公司",
+        "珠海格力电器股份有限公司",
+        "中家院（北京）检测认证有限公司",
+        "尼得科压缩机（北京）有限公司",
+        "广州万宝集团压缩机有限公司",
+        "长虹华意压缩机股份有限公司",
+        "江苏白雪电器股份有限公司",
+        "杭州钱江制冷压缩机集团有限公司",
+        "泰州乐金电子冷机有限公司",
+        "安徽美芝制冷设备有限公司",
+        "四川丹甫环境科技有限公司",
+        "无锡松下冷机压缩机有限公司",
+        "中国家用电器协会",
+        "中国质量认证中心",
+        "威凯检测技术有限公司",
+        "浙江工业大学",
+        "常熟市天银机电股份有限公司",
+        "浙江麦迪制冷科技股份有限公司"
+      ],
+      "draftCount": 24,
+      "groups": [
+        "海信系",
+        "美的",
+        "海尔",
+        "格力",
+        "美菱"
+      ],
+      "leadingGroup": "",
+      "techAreas": [
+        "其他"
+      ],
+      "scope": "",
+      "tc": "全国家用电器标准化技术委员会",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=CE1E6A1DD4F358F6E05397BE0A0A68DF"
+    },
+    {
+      "standardNo": "QB/T 5510-2021",
+      "title": "家用电冰箱保鲜性能试验方法",
+      "domain": "行业标准",
+      "planForm": "",
+      "status": "现行",
+      "publishedAt": "2021-08-21",
+      "draftUnits": [],
+      "draftCount": 0,
+      "groups": [],
+      "leadingGroup": "",
+      "techAreas": [
+        "保鲜"
+      ],
+      "scope": "本标准规定了家用电冰箱保鲜性能的试验方法，适用于家用电冰箱保鲜性能测试。",
+      "tc": "",
+      "llmStatus": "completed",
+      "url": "https://std.samr.gov.cn/hb/search/stdHBDetailed?id=D7B83E9E13F641ECE05397BE0A0A1B93"
+    }
+  ]
+}

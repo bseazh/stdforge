@@ -1,0 +1,18 @@
+{
+  "keywords": ["冰箱", "保鲜", "食品保鲜", "制冷", "家用电器", "家电"],
+  "types": ["gb", "hb", "db", "plan"],
+  "startDate": "2021-01-01",
+  "endDate": "2026-08-15",
+  "maxPages": 1,
+  "pageSize": 20,
+  "maxItems": 24,
+  "searchConcurrency": 3,
+  "llmConcurrency": 3,
+  "groups": [
+    { "group": "海信系", "keywords": ["海信"], "region": "广东省" },
+    { "group": "美的", "keywords": ["美的"], "region": "广东省" },
+    { "group": "海尔", "keywords": ["海尔"], "region": "山东省" },
+    { "group": "格力", "keywords": ["格力"], "region": "广东省" },
+    { "group": "美菱", "keywords": ["美菱", "华凌"], "region": "安徽省" }
+  ]
+}

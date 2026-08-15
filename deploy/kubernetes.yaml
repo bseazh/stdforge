@@ -16,6 +16,10 @@ data:
       @private path /.git /.git/* /.github /.github/*
       respond @private 404
 
+      handle /module2/api/* {
+        reverse_proxy http://{$NODE_IP}:5277
+      }
+
       handle /api/* {
         reverse_proxy http://{$NODE_IP}:4175
       }

@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start:parser": "node pdf-parser/server.mjs",
-    "check": "node --check app.js && node --check pdf-parser/server.mjs && node --check pdf-parser/kb-store.mjs && node --check pdf-parser/app.js && node --check KDB/app.js && node --check KDB/assistant.js"
+    "start:module2": "node module2/std-crawler/serve-demo.mjs",
+    "check": "node --check app.js && node --check pdf-parser/server.mjs && node --check pdf-parser/kb-store.mjs && node --check pdf-parser/app.js && node --check KDB/app.js && node --check KDB/assistant.js && node --check module2/std-crawler/serve-demo.mjs && node --check module2/std-crawler/demo-app.js"
   },
   "repository": {
     "type": "git",

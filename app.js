@@ -25,6 +25,10 @@ function notify(message) {
 }
 
 function showView(id) {
+  if (id === 'announcements') {
+    window.location.assign('module2/index.html');
+    return;
+  }
   if (id === 'policies') {
     window.location.assign('module3/dist/index.html');
     return;
