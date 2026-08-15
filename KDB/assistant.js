@@ -15,7 +15,7 @@
       <header class="kdb-assistant-header"><div><span class="kdb-assistant-kicker">KDB</span><strong>知识助手</strong><small>跨页面检索与文档入库</small></div><div><a href="/KDB/" title="打开知识库管理页"><i data-lucide="database"></i></a><button type="button" class="kdb-assistant-close" aria-label="关闭知识助手"><i data-lucide="x"></i></button></div></header>
       <div class="kdb-assistant-body">
         <form class="kdb-assistant-form">
-          <div class="kdb-assistant-fields"><label>范围<select name="module"><option value="">全部知识库</option><option value="standard-drafting">标准编写</option><option value="standards">标准</option><option value="policies">政策</option></select></label><label>回答<select name="responseMode"><option value="auto">证据优先</option><option value="llm">LLM 归纳</option></select></label></div>
+          <div class="kdb-assistant-fields"><label>检索范围<select name="module"><option value="">全部知识库</option><option value="standard-drafting">标准编写</option><option value="standards">标准</option><option value="policies">政策</option></select></label></div>
           <textarea name="question" aria-label="知识库问题" placeholder="问标准、条款或政策问题" required></textarea>
           <button class="kdb-assistant-ask" type="submit"><i data-lucide="send-horizontal"></i>提问</button>
         </form>
@@ -42,11 +42,9 @@
   }
 
   function renderResult(payload) {
-    const execution = payload.execution;
-    const executionText = execution ? `${execution.strategy === 'evidence' ? '原文证据直答' : execution.strategy === 'llm' ? 'LLM 归纳' : '原文检索'} · ${execution.totalMs} ms` : '';
     const citations = (payload.citations || []).slice(0, 3).map(citation => `<details><summary><span>[${citation.id}]</span><strong>${escapeHtml(citation.title)}</strong><small>${escapeHtml(citation.heading || `片段 ${citation.chunk}`)}</small><i data-lucide="chevron-down"></i></summary><p>${escapeHtml(citation.excerpt)}</p></details>`).join('');
     resultPanel.classList.remove('is-empty');
-    resultPanel.innerHTML = `<div class="kdb-result-label"><i data-lucide="sparkles"></i><span>${payload.mode === 'evidence' ? '证据直答' : payload.mode === 'llm' ? '知识库生成' : '检索结果'}</span></div><p class="kdb-result-answer">${escapeHtml(payload.answer).replace(/\n/g, '<br>')}</p>${executionText ? `<small class="kdb-result-meta"><i data-lucide="gauge"></i>${escapeHtml(executionText)}</small>` : ''}${citations ? `<div class="kdb-result-citations">${citations}</div>` : ''}`;
+    resultPanel.innerHTML = `<div class="kdb-result-label"><i data-lucide="sparkles"></i><span>${payload.mode === 'llm' ? '基于知识库生成' : '检索结果'}</span></div><p class="kdb-result-answer">${escapeHtml(payload.answer).replace(/\n/g, '<br>')}</p>${citations ? `<div class="kdb-result-citations">${citations}</div>` : ''}`;
     renderIcons();
   }
 
@@ -59,7 +57,7 @@
     button.innerHTML = '<i data-lucide="loader-circle"></i>检索中';
     renderIcons();
     try {
-      const response = await fetch('/api/kb/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, module: form.elements.module.value || undefined, responseMode: form.elements.responseMode.value }) });
+      const response = await fetch('/api/kb/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, module: form.elements.module.value || undefined }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || '知识库问答失败');
       renderResult(payload);

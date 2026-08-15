@@ -1,7 +1,7 @@
 const elements = {
   serverState: document.querySelector('#serverState'), stats: document.querySelector('#stats'), modelState: document.querySelector('#modelState'),
   answer: document.querySelector('#answer'), trace: document.querySelector('#trace'), citations: document.querySelector('#citations'), questionForm: document.querySelector('#questionForm'),
-  question: document.querySelector('#question'), questionModule: document.querySelector('#questionModule'), answerMode: document.querySelector('#answerMode'), askButton: document.querySelector('#askButton'),
+  question: document.querySelector('#question'), questionModule: document.querySelector('#questionModule'), askButton: document.querySelector('#askButton'),
   fileInput: document.querySelector('#fileInput'), fileLabel: document.querySelector('#fileLabel'), uploadModule: document.querySelector('#uploadModule'),
   uploadButton: document.querySelector('#uploadButton'), uploadStatus: document.querySelector('#uploadStatus'), documentList: document.querySelector('#documentList'),
   refreshDocuments: document.querySelector('#refreshDocuments'), toast: document.querySelector('#toast')
@@ -74,13 +74,9 @@ async function loadHealth() {
 function renderAnswer(result) {
   elements.answer.classList.remove('empty');
   const answerLabel = result.mode === 'evidence' ? '证据直答' : result.mode === 'llm' ? '基于知识库生成' : '知识库检索结果';
-  const execution = result.execution;
-  const executionText = execution
-    ? `${execution.strategy === 'evidence' ? '原文证据直答' : execution.strategy === 'llm' ? 'LLM 归纳' : '原文检索'} · 检索 ${execution.retrievalMs} ms · 生成 ${execution.generationMs} ms · 合计 ${execution.totalMs} ms`
-    : '';
-  elements.answer.innerHTML = `<div class="answer-label"><i data-lucide="sparkles"></i><span>${answerLabel}</span></div><p>${escapeHtml(result.answer).replace(/\n/g, '<br>')}</p>${executionText ? `<small class="execution-meta"><i data-lucide="gauge"></i>${escapeHtml(executionText)}</small>` : ''}`;
-  elements.trace.classList.toggle('hidden', !result.trace?.length);
-  elements.trace.innerHTML = result.trace?.length ? `<div><i data-lucide="route"></i><strong>检索轨迹</strong></div><ol>${result.trace.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol>` : '';
+  elements.answer.innerHTML = `<div class="answer-label"><i data-lucide="sparkles"></i><span>${answerLabel}</span></div><p>${escapeHtml(result.answer).replace(/\n/g, '<br>')}</p>`;
+  elements.trace.classList.add('hidden');
+  elements.trace.innerHTML = '';
   elements.citations.classList.toggle('hidden', !result.citations?.length);
   elements.citations.innerHTML = result.citations?.length ? `<div class="citations-heading"><strong>引用依据</strong><span>${result.citations.length} 条，可展开查看原文</span></div>${result.citations.map(citation => {
     const excerpt = String(citation.excerpt || '');
@@ -100,7 +96,7 @@ async function askQuestion(event) {
   try {
     const response = await fetch('/api/kb/ask', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, module: elements.questionModule.value || undefined, responseMode: elements.answerMode.value })
+      body: JSON.stringify({ question, module: elements.questionModule.value || undefined })
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || '知识库问答失败');

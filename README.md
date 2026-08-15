@@ -138,7 +138,7 @@ node scripts/build-standard-data.mjs \
 | `POST /api/kb/imports` | 上传 DOCX、TXT、Markdown 或 CSV 并转换为知识库文本。 |
 | `POST /api/kb/ingest` | 统一文档入库接口；PDF 返回异步解析任务，其它支持格式直接返回入库结果。 |
 | `POST /api/kb/search` | 在知识库文本中检索，返回可定位片段。 |
-| `POST /api/kb/ask` | 先检索再生成带引用答案；请求 JSON 可传 `responseMode: "llm"` 强制 LLM 归纳，响应含可审计的耗时与执行路径。 |
+| `POST /api/kb/ask` | 先检索后由 LLM 生成带引用答案，响应含可审计的耗时与执行路径。 |
 | `POST /api/kb/reindex` | 基于持久化文本重建全部知识库索引。 |
 | `POST /api/notifications/review` | 向服务端预配置的评审组发送评审通知。 |
 | `GET/POST /api/notifications/test-recipients` | 读取或添加受测试授权码保护的收件人。 |

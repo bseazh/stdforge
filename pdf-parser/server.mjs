@@ -129,7 +129,7 @@ function findDirectEvidence(question, hits) {
 }
 
 function retrievalTrace(question, hits, directEvidence) {
-  const selected = hits.slice(0, 3).map((hit, index) => `证据 [${index + 1}]：${hit.title}${hit.heading ? ` / ${hit.heading}` : ''}`).join('；');
+  const selected = hits.slice(0, 3).map((hit, index) => `证据 [${hit.id || index + 1}]：${hit.title}${hit.heading ? ` / ${hit.heading}` : ''}`).join('；');
   const trace = [
     `问题识别：${questionIntent(question)}`,
     `检索范围：命中 ${hits.length} 个相关片段${selected ? `；${selected}` : ''}`
@@ -159,14 +159,14 @@ function publicDocument(document) {
   return { ...rest, chunkCount: chunks.length };
 }
 
-async function generateGroundedAnswer(question, hits, directEvidence, responseMode = 'auto') {
+async function generateGroundedAnswer(question, hits, directEvidence, responseMode = 'llm') {
   if (!hits.length) {
     return {
       mode: 'not-found',
       answer: '知识库中没有找到能够支撑该问题的内容。请上传相关标准、编写材料或政策原文后再提问。'
     };
   }
-  if (directEvidence && responseMode !== 'llm') return { mode: 'evidence', answer: directEvidence.answer };
+  if (directEvidence && responseMode === 'evidence') return { mode: 'evidence', answer: directEvidence.answer };
   const sources = hits.map((hit, index) => `【${index + 1}】${hit.title} / ${hit.heading || `片段 ${hit.chunk}`}\n${hit.text}`).join('\n\n');
   if (!llmBaseUrl || !llmApiKey || !llmModel) {
     return {
@@ -189,7 +189,7 @@ async function generateGroundedAnswer(question, hits, directEvidence, responseMo
         messages: [
           {
             role: 'system',
-            content: '你是标准化知识库问答助手。只能依据提供的知识库片段作答，不能补充片段外事实。先给用户可直接使用的结论，再给必要条件。不得把知识库中存在的数值说成缺失。只返回 JSON：{"answer":"中文回答，结论后使用 [1]、[2] 标注依据","evidenceIds":[1,2]}。不要输出内部推理过程。'
+            content: '你是标准化知识库问答助手。只能依据提供的知识库片段作答，不能补充片段外事实。先给用户可直接使用的结论，再给必要条件。不得把知识库中存在的数值说成缺失。只返回 JSON：{"answer":"中文回答，结论后使用 [1]、[2] 标注依据","evidenceIds":[1,2]}。evidenceIds 必须与 answer 中实际出现的引用编号完全一致。不要输出内部推理过程。'
           },
           { role: 'user', content: `问题：${question}\n\n知识库片段：\n${sources}` }
         ]
@@ -199,7 +199,15 @@ async function generateGroundedAnswer(question, hits, directEvidence, responseMo
     if (!response.ok) throw new Error(body.error?.message || `LLM HTTP ${response.status}`);
     const structured = parseStructuredAnswer(body.choices?.[0]?.message?.content);
     if (!structured) throw new Error('LLM 未返回结构化回答');
-    return { mode: 'llm', answer: structured.answer, evidenceIds: structured.evidenceIds };
+    const declaredEvidenceIds = [...new Set((Array.isArray(structured.evidenceIds) ? structured.evidenceIds : [])
+      .map(Number)
+      .filter(id => Number.isInteger(id) && id >= 1 && id <= hits.length))];
+    const markedEvidenceIds = [...new Set([...structured.answer.matchAll(/\[(\d+)\]/g)]
+      .map(match => Number(match[1]))
+      .filter(id => Number.isInteger(id) && id >= 1 && id <= hits.length))];
+    const evidenceIds = markedEvidenceIds.length ? markedEvidenceIds : declaredEvidenceIds;
+    if (!evidenceIds.length) throw new Error('LLM 未返回可核验的引用编号');
+    return { mode: 'llm', answer: structured.answer, evidenceIds };
   } catch (error) {
     console.error('KB LLM answer failed:', error.message);
     return {
@@ -507,14 +515,27 @@ async function handleApi(request, response, url) {
   if (request.method === 'POST' && url.pathname === '/api/kb/ask') {
     try {
       const startedAt = performance.now();
-      const { question, module, responseMode } = await readJsonRequest(request);
-      const selectedMode = responseMode === 'llm' ? 'llm' : 'auto';
+      const { question, module } = await readJsonRequest(request);
+      const selectedMode = 'llm';
       const hits = kb.search(question, { module: module || undefined, limit: 6 });
       const retrievalMs = performance.now() - startedAt;
       const directEvidence = findDirectEvidence(question, hits);
       const generationStartedAt = performance.now();
       const result = await generateGroundedAnswer(question, hits, directEvidence, selectedMode);
       const generationMs = performance.now() - generationStartedAt;
+      const citedHitIndexes = result.mode === 'llm'
+        ? result.evidenceIds
+        : hits.length ? [1] : [];
+      const citations = citedHitIndexes.map(citationId => {
+        const hit = hits[citationId - 1];
+        if (!hit) return null;
+        const { text, ...publicHit } = hit;
+        return {
+          id: citationId,
+          ...publicHit,
+          excerpt: directEvidence?.citationId === citationId ? directEvidence.excerpt : hit.excerpt
+        };
+      }).filter(Boolean);
       return json(response, 200, {
         question,
         ...result,
@@ -523,11 +544,11 @@ async function handleApi(request, response, url) {
           retrievalMs: Math.round(retrievalMs),
           generationMs: Math.round(generationMs),
           totalMs: Math.round(performance.now() - startedAt),
-          llmRequested: selectedMode === 'llm',
+          llmRequested: true,
           llmUsed: result.mode === 'llm'
         },
-        trace: retrievalTrace(question, hits, result.mode === 'evidence' ? directEvidence : null),
-        citations: hits.map(({ text, ...hit }, index) => ({ id: index + 1, ...hit, excerpt: directEvidence?.citationId === index + 1 ? directEvidence.excerpt : hit.excerpt }))
+        trace: retrievalTrace(question, citations, result.mode === 'evidence' ? directEvidence : null),
+        citations
       });
     } catch (error) {
       return json(response, 400, { error: error.message });
