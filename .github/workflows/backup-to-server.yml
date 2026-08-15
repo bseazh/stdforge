@@ -55,6 +55,7 @@ jobs:
           MINERU_TOKEN: ${{ secrets.MINERU_TOKEN }}
           FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
           FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          FEISHU_DOCUMENT_URL: ${{ secrets.FEISHU_DOCUMENT_URL }}
           FEISHU_APPROVAL_CODE: ${{ secrets.FEISHU_APPROVAL_CODE }}
           FEISHU_INITIATOR_OPEN_ID: ${{ secrets.FEISHU_INITIATOR_OPEN_ID }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
@@ -64,6 +65,7 @@ jobs:
           test -n "$MINERU_TOKEN"
           test -n "$FEISHU_APP_ID"
           test -n "$FEISHU_APP_SECRET"
+          test -n "$FEISHU_DOCUMENT_URL"
           test -n "$FEISHU_APPROVAL_CODE"
           test -n "$FEISHU_INITIATOR_OPEN_ID"
           test -n "$LLM_BASE_URL"
@@ -73,6 +75,7 @@ jobs:
             printf 'MINERU_TOKEN=%s\n' "$MINERU_TOKEN"
             printf 'FEISHU_APP_ID=%s\n' "$FEISHU_APP_ID"
             printf 'FEISHU_APP_SECRET=%s\n' "$FEISHU_APP_SECRET"
+            printf 'FEISHU_DOCUMENT_URL=%s\n' "$FEISHU_DOCUMENT_URL"
             printf 'FEISHU_APPROVAL_CODE=%s\n' "$FEISHU_APPROVAL_CODE"
             printf 'FEISHU_INITIATOR_OPEN_ID=%s\n' "$FEISHU_INITIATOR_OPEN_ID"
             printf 'LLM_BASE_URL=%s\n' "$LLM_BASE_URL"
