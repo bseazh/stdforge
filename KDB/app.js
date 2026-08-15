@@ -74,15 +74,23 @@ async function loadHealth() {
 function renderAnswer(result) {
   elements.answer.classList.remove('empty');
   const answerLabel = result.mode === 'evidence' ? '证据直答' : result.mode === 'llm' ? '基于知识库生成' : '知识库检索结果';
-  elements.answer.innerHTML = `<div class="answer-label"><i data-lucide="sparkles"></i><span>${answerLabel}</span></div><p>${escapeHtml(result.answer).replace(/\n/g, '<br>')}</p>`;
+  const citationsById = new Map((result.citations || []).map(citation => [String(citation.id), citation]));
+  const answer = escapeHtml(result.answer).replace(/\[(\d+)\]/g, (marker, id) => citationsById.has(id)
+    ? `<button class="citation-link" type="button" data-citation-id="${id}">${marker}</button>`
+    : marker).replace(/\n/g, '<br>');
+  elements.answer.innerHTML = `<div class="answer-label"><i data-lucide="sparkles"></i><span>${answerLabel}</span></div><p>${answer}</p>`;
   elements.trace.classList.add('hidden');
   elements.trace.innerHTML = '';
-  elements.citations.classList.toggle('hidden', !result.citations?.length);
-  elements.citations.innerHTML = result.citations?.length ? `<div class="citations-heading"><strong>引用依据</strong><span>${result.citations.length} 条，可展开查看原文</span></div>${result.citations.map(citation => {
-    const excerpt = String(citation.excerpt || '');
-    const preview = excerpt.replace(/\s+/g, ' ').trim().slice(0, 78);
-    return `<details class="citation"><summary><span>[${citation.id}]</span><div><strong>${escapeHtml(citation.title)}</strong><small>${moduleLabels[citation.module]} · ${escapeHtml(citation.heading || `片段 ${citation.chunk}`)} · ${escapeHtml(preview)}${excerpt.length > preview.length ? '...' : ''}</small></div><i data-lucide="chevron-down"></i></summary><div class="citation-detail"><p>${escapeHtml(excerpt)}</p></div></details>`;
-  }).join('')}` : '';
+  elements.citations.classList.add('hidden');
+  elements.citations.innerHTML = '';
+  elements.answer.querySelectorAll('.citation-link').forEach(button => button.addEventListener('click', () => {
+    const citation = citationsById.get(button.dataset.citationId);
+    if (!citation) return;
+    elements.citations.classList.remove('hidden');
+    elements.citations.innerHTML = `<article class="citation-focus"><div><span>[${citation.id}]</span><strong>${escapeHtml(citation.title)}</strong><small>${moduleLabels[citation.module]} · ${escapeHtml(citation.heading || `片段 ${citation.chunk}`)}</small></div><button class="icon-button" type="button" aria-label="关闭引用"><i data-lucide="x"></i></button><p>${escapeHtml(citation.excerpt)}</p></article>`;
+    elements.citations.querySelector('button').addEventListener('click', () => elements.citations.classList.add('hidden'));
+    lucide.createIcons();
+  }));
   lucide.createIcons();
 }
 

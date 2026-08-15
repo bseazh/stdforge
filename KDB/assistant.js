@@ -42,9 +42,21 @@
   }
 
   function renderResult(payload) {
-    const citations = (payload.citations || []).slice(0, 3).map(citation => `<details><summary><span>[${citation.id}]</span><strong>${escapeHtml(citation.title)}</strong><small>${escapeHtml(citation.heading || `片段 ${citation.chunk}`)}</small><i data-lucide="chevron-down"></i></summary><p>${escapeHtml(citation.excerpt)}</p></details>`).join('');
+    const citationsById = new Map((payload.citations || []).map(citation => [String(citation.id), citation]));
+    const answer = escapeHtml(payload.answer).replace(/\[(\d+)\]/g, (marker, id) => citationsById.has(id)
+      ? `<button class="kdb-citation-link" type="button" data-citation-id="${id}">${marker}</button>`
+      : marker).replace(/\n/g, '<br>');
     resultPanel.classList.remove('is-empty');
-    resultPanel.innerHTML = `<div class="kdb-result-label"><i data-lucide="sparkles"></i><span>${payload.mode === 'llm' ? '基于知识库生成' : '检索结果'}</span></div><p class="kdb-result-answer">${escapeHtml(payload.answer).replace(/\n/g, '<br>')}</p>${citations ? `<div class="kdb-result-citations">${citations}</div>` : ''}`;
+    resultPanel.innerHTML = `<div class="kdb-result-label"><i data-lucide="sparkles"></i><span>${payload.mode === 'llm' ? '基于知识库生成' : '检索结果'}</span></div><p class="kdb-result-answer">${answer}</p><div class="kdb-citation-focus hidden"></div>`;
+    resultPanel.querySelectorAll('.kdb-citation-link').forEach(button => button.addEventListener('click', () => {
+      const citation = citationsById.get(button.dataset.citationId);
+      if (!citation) return;
+      const source = resultPanel.querySelector('.kdb-citation-focus');
+      source.classList.remove('hidden');
+      source.innerHTML = `<div><span>[${citation.id}]</span><strong>${escapeHtml(citation.title)}</strong><small>${escapeHtml(citation.heading || `片段 ${citation.chunk}`)}</small></div><button type="button" aria-label="关闭引用"><i data-lucide="x"></i></button><p>${escapeHtml(citation.excerpt)}</p>`;
+      source.querySelector('button').addEventListener('click', () => source.classList.add('hidden'));
+      renderIcons();
+    }));
     renderIcons();
   }
 
