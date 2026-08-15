@@ -24,6 +24,18 @@ async function requestJson(url, options = {}) {
   return body;
 }
 
+async function extractNativePdfText(pdfPath, outputDir) {
+  const outputPath = join(outputDir, 'native.pdf.txt');
+  try {
+    await execFileAsync(process.env.PDFTOTEXT_BIN || 'pdftotext', ['-layout', pdfPath, outputPath], { maxBuffer: 4 * 1024 * 1024 });
+    const text = await readFile(outputPath, 'utf8');
+    return { nativeText: text, nativeTextPath: outputPath };
+  } catch (error) {
+    console.warn('Native PDF text extraction unavailable:', error.code || error.message);
+    return { nativeText: '', nativeTextPath: null };
+  }
+}
+
 export async function downloadResultArchive(url, onStatus = () => {}) {
   let lastError;
   for (let attempt = 1; attempt <= RESULT_DOWNLOAD_ATTEMPTS; attempt += 1) {
@@ -97,7 +109,8 @@ export async function parsePdf({ token, pdfPath, fileName, outputDir, onStatus =
   await execFileAsync('/usr/bin/unzip', ['-oq', archivePath, '-d', outputDir]);
   const markdownPath = join(outputDir, 'full.md');
   const markdown = await readFile(markdownPath, 'utf8');
+  const native = await extractNativePdfText(pdfPath, outputDir);
   onStatus({ state: 'done', message: '解析完成', batchId });
 
-  return { batchId, markdown, markdownPath, archivePath };
+  return { batchId, markdown, markdownPath, archivePath, ...native };
 }

@@ -1,6 +1,6 @@
 const elements = {
   serverState: document.querySelector('#serverState'), stats: document.querySelector('#stats'), modelState: document.querySelector('#modelState'),
-  answer: document.querySelector('#answer'), citations: document.querySelector('#citations'), questionForm: document.querySelector('#questionForm'),
+  answer: document.querySelector('#answer'), trace: document.querySelector('#trace'), citations: document.querySelector('#citations'), questionForm: document.querySelector('#questionForm'),
   question: document.querySelector('#question'), questionModule: document.querySelector('#questionModule'), askButton: document.querySelector('#askButton'),
   fileInput: document.querySelector('#fileInput'), fileLabel: document.querySelector('#fileLabel'), uploadModule: document.querySelector('#uploadModule'),
   uploadButton: document.querySelector('#uploadButton'), uploadStatus: document.querySelector('#uploadStatus'), documentList: document.querySelector('#documentList'),
@@ -49,7 +49,7 @@ function renderDocuments(documents) {
   elements.documentList.innerHTML = documents.map(document => `
     <article class="document-row">
       <i data-lucide="file-text"></i>
-      <div><strong>${escapeHtml(document.title)}</strong><small>${moduleLabels[document.module]} · ${document.chunkCount} 个片段 · ${formatDate(document.importedAt)}</small></div>
+      <div><strong>${escapeHtml(document.title)}</strong><small>${moduleLabels[document.module]} · ${document.chunkCount} 个片段 · ${formatDate(document.importedAt)}${document.qualityIssues?.length ? ` · ${escapeHtml(document.qualityIssues.join('、'))}` : ''}</small></div>
     </article>`).join('');
   lucide.createIcons();
 }
@@ -73,7 +73,10 @@ async function loadHealth() {
 
 function renderAnswer(result) {
   elements.answer.classList.remove('empty');
-  elements.answer.innerHTML = `<div class="answer-label"><i data-lucide="sparkles"></i><span>${result.mode === 'llm' ? '基于知识库生成' : '知识库检索结果'}</span></div><p>${escapeHtml(result.answer).replace(/\n/g, '<br>')}</p>`;
+  const answerLabel = result.mode === 'evidence' ? '证据直答' : result.mode === 'llm' ? '基于知识库生成' : '知识库检索结果';
+  elements.answer.innerHTML = `<div class="answer-label"><i data-lucide="sparkles"></i><span>${answerLabel}</span></div><p>${escapeHtml(result.answer).replace(/\n/g, '<br>')}</p>`;
+  elements.trace.classList.toggle('hidden', !result.trace?.length);
+  elements.trace.innerHTML = result.trace?.length ? `<div><i data-lucide="route"></i><strong>检索轨迹</strong></div><ol>${result.trace.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol>` : '';
   elements.citations.classList.toggle('hidden', !result.citations?.length);
   elements.citations.innerHTML = (result.citations || []).map(citation => `
     <article class="citation"><span>[${citation.id}]</span><div><strong>${escapeHtml(citation.title)}</strong><small>${moduleLabels[citation.module]} · ${escapeHtml(citation.heading || `片段 ${citation.chunk}`)}</small><p>${escapeHtml(citation.excerpt)}</p></div></article>`).join('');

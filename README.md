@@ -85,7 +85,7 @@ open index.html
 
 ### 启动 PDF 解析与通知服务
 
-要求 Node.js 20+、`unzip` 命令，以及按需配置的 MinerU / SMTP / 飞书凭据。
+要求 Node.js 20+、`unzip`、`pdftotext` 命令，以及按需配置的 MinerU / SMTP / 飞书凭据。PDF 入库会同时保留 MinerU 版面解析与原始 PDF 的文本层，以校验表格中的数值和单位。
 
 ```bash
 npm ci

@@ -4,7 +4,7 @@
 
 ## 启动
 
-要求 Node.js 20+、系统命令 `/usr/bin/unzip` 和有效的 MinerU API Token。
+要求 Node.js 20+、系统命令 `unzip`、`pdftotext` 和有效的 MinerU API Token。
 
 ```bash
 cd stdforge
@@ -23,7 +23,7 @@ PORT=4174 MINERU_TOKEN='<your-token>' node pdf-parser/server.mjs
 
 输入：单个文件，演示限制为 30 MB。
 
-- PDF 使用 MinerU 识别版面、表格和正文，转换为 Markdown。
+- PDF 使用 MinerU 识别版面、表格和正文，并与原始 PDF 文本层合并；后者用于校验温度、单位和表格数值。
 - DOCX、TXT、Markdown、CSV 直接提取为 UTF-8 文本。
 - 解析页可选择“标准编写、标准、政策”分区。PDF 解析完成或文本提取成功后，内容会自动写入仓库根目录 `KDB/`，按哈希去重并更新段落分块索引。
 

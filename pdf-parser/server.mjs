@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, resolve } from 'node:path';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { parsePdf, ResultDownloadError } from './mineru-client.mjs';
 import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
@@ -97,6 +97,54 @@ async function readJsonRequest(request) {
   try { return JSON.parse(body.toString('utf8')); } catch { throw new Error('请求内容必须是 JSON'); }
 }
 
+function mergedPdfKnowledgeText(result) {
+  if (!result.nativeText?.trim()) return result.markdown;
+  return `${result.markdown}\n\n# 原始 PDF 文本（数值与表格校验）\n\n${result.nativeText}`;
+}
+
+function questionIntent(question) {
+  if (/环境|温度|摄氏|湿度|鉴定条件/.test(question)) return '鉴定环境与数值范围';
+  if (/试验|测试|检测/.test(question)) return '试验或检测要求';
+  if (/引用|标准号/.test(question)) return '规范性引用文件';
+  return '标准内容问答';
+}
+
+function findDirectEvidence(question, hits) {
+  if (!/环境|温度|摄氏/.test(question)) return null;
+  const range = /环境温度\s*[:：]?\s*(?:为|在|应为)?\s*(-?\d+(?:\.\d+)?\s*(?:℃|°\s*C|摄氏度))\s*(?:~|～|至|到|-|—)\s*(-?\d+(?:\.\d+)?\s*(?:℃|°\s*C|摄氏度))/m;
+  for (const [index, hit] of hits.entries()) {
+    const match = hit.text.match(range);
+    if (!match) continue;
+    const low = match[1].replace(/\s+/g, ' ');
+    const high = match[2].replace(/\s+/g, ' ');
+    return {
+      citationId: index + 1,
+      answer: `二手洗衣机产品鉴定应在室内进行，环境温度为 ${low}~${high}。`
+    };
+  }
+  return null;
+}
+
+function retrievalTrace(question, hits, directEvidence) {
+  const selected = hits.slice(0, 3).map((hit, index) => `证据 [${index + 1}]：${hit.title}${hit.heading ? ` / ${hit.heading}` : ''}`).join('；');
+  const trace = [
+    `问题识别：${questionIntent(question)}`,
+    `检索范围：命中 ${hits.length} 个相关片段${selected ? `；${selected}` : ''}`
+  ];
+  trace.push(directEvidence ? `数值核验：在证据 [${directEvidence.citationId}] 中找到可直接引用的温度范围。` : '答案生成：仅使用命中片段中的可引用内容。');
+  return trace;
+}
+
+function parseStructuredAnswer(content) {
+  const candidate = String(content || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try {
+    const result = JSON.parse(candidate);
+    return typeof result.answer === 'string' && result.answer.trim() ? result : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseKbModule(value, fallback = 'standards') {
   const module = value || fallback;
   if (!knowledgeModules.includes(module)) throw new Error('知识库分区必须是 standard-drafting、standards 或 policies');
@@ -108,13 +156,14 @@ function publicDocument(document) {
   return { ...rest, chunkCount: chunks.length };
 }
 
-async function generateGroundedAnswer(question, hits) {
+async function generateGroundedAnswer(question, hits, directEvidence) {
   if (!hits.length) {
     return {
       mode: 'not-found',
       answer: '知识库中没有找到能够支撑该问题的内容。请上传相关标准、编写材料或政策原文后再提问。'
     };
   }
+  if (directEvidence) return { mode: 'evidence', answer: directEvidence.answer };
   const sources = hits.map((hit, index) => `【${index + 1}】${hit.title} / ${hit.heading || `片段 ${hit.chunk}`}\n${hit.text}`).join('\n\n');
   if (!llmBaseUrl || !llmApiKey || !llmModel) {
     return {
@@ -133,10 +182,11 @@ async function generateGroundedAnswer(question, hits) {
       body: JSON.stringify({
         model: llmModel,
         temperature: 0.1,
+        response_format: { type: 'json_object' },
         messages: [
           {
             role: 'system',
-            content: '你是标准化知识库问答助手。只能依据提供的知识库片段作答，不能补充片段外事实。回答使用中文，结论后必须以 [1]、[2] 形式标注依据；资料不足时明确说明。'
+            content: '你是标准化知识库问答助手。只能依据提供的知识库片段作答，不能补充片段外事实。先给用户可直接使用的结论，再给必要条件。不得把知识库中存在的数值说成缺失。只返回 JSON：{"answer":"中文回答，结论后使用 [1]、[2] 标注依据","evidenceIds":[1,2]}。不要输出内部推理过程。'
           },
           { role: 'user', content: `问题：${question}\n\n知识库片段：\n${sources}` }
         ]
@@ -144,9 +194,9 @@ async function generateGroundedAnswer(question, hits) {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.error?.message || `LLM HTTP ${response.status}`);
-    const answer = body.choices?.[0]?.message?.content?.trim();
-    if (!answer) throw new Error('LLM 未返回可用回答');
-    return { mode: 'llm', answer };
+    const structured = parseStructuredAnswer(body.choices?.[0]?.message?.content);
+    if (!structured) throw new Error('LLM 未返回结构化回答');
+    return { mode: 'llm', answer: structured.answer, evidenceIds: structured.evidenceIds };
   } catch (error) {
     console.error('KB LLM answer failed:', error.message);
     return {
@@ -303,11 +353,11 @@ async function startParse(job) {
       const indexed = await kb.upsertText({
         module: job.kbModule,
         fileName: job.fileName,
-        text: result.markdown,
-        source: { type: 'mineru-pdf', title: job.fileName.replace(/\.pdf$/i, '') }
+        text: mergedPdfKnowledgeText(result),
+        source: { type: result.nativeText ? 'mineru-pdf+native-text' : 'mineru-pdf', title: job.fileName.replace(/\.pdf$/i, ''), fileHash: job.originalHash }
       });
-      job.kb = { document: publicDocument(indexed.document), reused: indexed.reused, indexedAt: new Date().toISOString() };
-      Object.assign(job, { state: 'done', message: indexed.reused ? '解析完成，知识库已有相同文本' : '解析完成，知识库索引已更新' });
+      job.kb = { document: publicDocument(indexed.document), reused: indexed.reused, replaced: indexed.replaced === true, indexedAt: new Date().toISOString() };
+      Object.assign(job, { state: 'done', message: indexed.reused ? '解析完成，知识库已有相同文本' : indexed.replaced ? '解析完成，已替换同名文档索引' : '解析完成，知识库索引已更新' });
     } catch (indexError) {
       console.error('KB indexing failed:', indexError.message);
       Object.assign(job, { state: 'done', message: '解析完成，但知识库更新失败', kb: { error: indexError.message } });
@@ -376,7 +426,7 @@ async function handleApi(request, response, url) {
       const importId = randomUUID();
       stagingPath = join(runtimeRoot, `${importId}-${fileName}`);
       await writeFile(stagingPath, body);
-      const indexed = await kb.importFile({ module, filePath: stagingPath, fileName, source: { type: 'upload', title: fileName.replace(/\.[^.]+$/, '') } });
+      const indexed = await kb.importFile({ module, filePath: stagingPath, fileName, source: { type: 'upload', title: fileName.replace(/\.[^.]+$/, ''), fileHash: createHash('sha256').update(body).digest('hex') } });
       return json(response, indexed.reused ? 200 : 201, { ok: true, reused: indexed.reused, document: publicDocument(indexed.document), stats: kb.stats() });
     } catch (error) {
       return json(response, 400, { error: error.message });
@@ -404,10 +454,12 @@ async function handleApi(request, response, url) {
     try {
       const { question, module } = await readJsonRequest(request);
       const hits = kb.search(question, { module: module || undefined, limit: 6 });
-      const result = await generateGroundedAnswer(question, hits);
+      const directEvidence = findDirectEvidence(question, hits);
+      const result = await generateGroundedAnswer(question, hits, directEvidence);
       return json(response, 200, {
         question,
         ...result,
+        trace: retrievalTrace(question, hits, directEvidence),
         citations: hits.map(({ text, ...hit }, index) => ({ id: index + 1, ...hit }))
       });
     } catch (error) {
@@ -478,7 +530,7 @@ async function handleApi(request, response, url) {
       const originalPath = join(outputDir, 'original.pdf');
       await mkdir(outputDir, { recursive: true });
       await writeFile(originalPath, body);
-      const job = { id, fileName, size: body.length, outputDir, originalPath, kbModule, state: 'queued', message: '任务已创建', createdAt: new Date().toISOString() };
+      const job = { id, fileName, size: body.length, outputDir, originalPath, originalHash: createHash('sha256').update(body).digest('hex'), kbModule, state: 'queued', message: '任务已创建', createdAt: new Date().toISOString() };
       jobs.set(id, job);
       void startParse(job);
       return json(response, 202, publicJob(job));

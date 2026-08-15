@@ -88,7 +88,7 @@ jobs:
         env:
           DEPLOY_PATH: /home/ubuntu/Project/stdforge
         run: |
-          ssh "$DEPLOY_TARGET" "cd '$DEPLOY_PATH' && npm ci --omit=dev"
+          ssh "$DEPLOY_TARGET" "command -v pdftotext >/dev/null || (sudo -n apt-get update && sudo -n apt-get install -y poppler-utils); cd '$DEPLOY_PATH' && npm ci --omit=dev"
 
       - name: Restart the PDF parser service
         env:

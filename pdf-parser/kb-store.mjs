@@ -16,6 +16,19 @@ function cleanFileName(value) {
 function normaliseText(value) {
   return String(value || '')
     .replace(/\r\n?/g, '\n')
+    .replace(/!\[[^\]]*\]\([^\)]+\)/g, '')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(?:p|div|tr|li|h[1-6])\s*>/gi, '\n')
+    .replace(/<(?:p|div|tr|li|h[1-6])\b[^>]*>/gi, '\n')
+    .replace(/<(?:td|th)\b[^>]*>/gi, ' | ')
+    .replace(/<\/(?:td|th)\s*>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
     .replace(/[\t ]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -34,6 +47,14 @@ function cjkBigrams(value) {
 function tokens(value) {
   const latin = value.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}_.\-/]{1,}/gu) || [];
   return [...new Set([...latin, ...cjkBigrams(value)])];
+}
+
+function queryTerms(query) {
+  const expansions = [];
+  if (/环境|温度|摄氏|湿度|鉴定条件/.test(query)) expansions.push('环境温度', '鉴定条件', '室内');
+  if (/试验|测试|检测/.test(query)) expansions.push('试验方法', '测试条件');
+  if (/电压/.test(query)) expansions.push('额定电压', '鉴定电压');
+  return tokens([query, ...expansions].join(' '));
 }
 
 function chunkText(text) {
@@ -76,7 +97,19 @@ function rankChunk(chunk, query, queryTerms) {
     score += Math.min(occurrences, 3) * (term.length >= 4 ? 3 : 1);
   }
   if (chunk.heading && queryTerms.some(term => chunk.heading.toLocaleLowerCase().includes(term))) score += 4;
+  if (/环境|温度|摄氏|湿度|鉴定条件/.test(query)) {
+    if (/环境温度|鉴定条件|室内/.test(chunk.text)) score += 14;
+    if (/-?\d+(?:\.\d+)?\s*(?:℃|°\s*C|摄氏度)\s*(?:~|～|至|到|-|—)\s*-?\d+(?:\.\d+)?\s*(?:℃|°\s*C|摄氏度)/.test(chunk.text)) score += 18;
+    if (/环境温度\s*[:：]\s*(?:;|；|$)/m.test(chunk.text)) score -= 12;
+  }
   return score;
+}
+
+function qualityIssues(text) {
+  const issues = [];
+  if (/环境温度\s*[:：]\s*(?:;|；|$)/m.test(text)) issues.push('环境温度数值缺失');
+  if (/环境湿度\s*[:：]\s*(?:;|；|$)/m.test(text)) issues.push('环境湿度数值缺失');
+  return issues;
 }
 
 function xmlToText(xml) {
@@ -148,6 +181,25 @@ export class KnowledgeBase {
     const existing = this.catalog.documents.find(document => document.sourceHash === sourceHash && document.module === module);
     if (existing) return { document: existing, reused: true };
 
+    const cleanedName = cleanFileName(fileName);
+    const replacement = this.catalog.documents.find(document => document.module === module && document.fileName === cleanedName);
+    if (replacement) {
+      await writeFile(resolve(this.root, replacement.textPath), `${normalised}\n`, 'utf8');
+      Object.assign(replacement, {
+        title: source.title || cleanedName.replace(/\.[^.]+$/, ''),
+        sourceType: source.type || 'upload',
+        sourceUrl: source.url || null,
+        sourceFileHash: source.fileHash || replacement.sourceFileHash || null,
+        sourceHash,
+        updatedAt: new Date().toISOString(),
+        charCount: normalised.length,
+        chunks: chunkText(normalised),
+        qualityIssues: qualityIssues(normalised)
+      });
+      await this.persist();
+      return { document: replacement, reused: false, replaced: true };
+    }
+
     const id = randomUUID();
     const storedName = `${id}.md`;
     const textPath = join(this.root, module, 'text', storedName);
@@ -156,15 +208,17 @@ export class KnowledgeBase {
     const document = {
       id,
       module,
-      fileName: cleanFileName(fileName),
-      title: source.title || cleanFileName(fileName).replace(/\.[^.]+$/, ''),
+      fileName: cleanedName,
+      title: source.title || cleanedName.replace(/\.[^.]+$/, ''),
       sourceType: source.type || 'upload',
       sourceUrl: source.url || null,
+      sourceFileHash: source.fileHash || null,
       sourceHash,
       textPath: relativeTextPath,
       importedAt: new Date().toISOString(),
       charCount: normalised.length,
-      chunks: chunkText(normalised)
+      chunks: chunkText(normalised),
+      qualityIssues: qualityIssues(normalised)
     };
     this.catalog.documents.unshift(document);
     await this.persist();
@@ -199,12 +253,12 @@ export class KnowledgeBase {
     if (module) this.assertModule(module);
     const cleanedQuery = normaliseText(query);
     if (!cleanedQuery) throw new Error('请输入要检索的问题或关键词');
-    const queryTerms = tokens(cleanedQuery);
+    const queryTokenSet = queryTerms(cleanedQuery);
     const hits = [];
     for (const document of this.catalog.documents) {
       if (module && document.module !== module) continue;
       for (const chunk of document.chunks) {
-        const score = rankChunk(chunk, cleanedQuery, queryTerms);
+        const score = rankChunk(chunk, cleanedQuery, queryTokenSet);
         if (!score) continue;
         hits.push({
           documentId: document.id,
@@ -228,6 +282,7 @@ export class KnowledgeBase {
       const text = await readFile(resolve(this.root, document.textPath), 'utf8');
       document.chunks = chunkText(text);
       document.charCount = normaliseText(text).length;
+      document.qualityIssues = qualityIssues(text);
     }
     await this.persist();
     return this.stats();

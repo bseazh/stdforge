@@ -27,6 +27,7 @@
         <section class="panel chat-panel" aria-labelledby="chatHeading">
           <div class="panel-heading"><div><span class="index">01</span><h2 id="chatHeading">检索问答</h2></div><span class="model-state" id="modelState">检索模式</span></div>
           <div class="answer empty" id="answer"><i data-lucide="messages-square"></i><strong>等待问题</strong><span>回答将基于已入库的原文片段生成</span></div>
+          <section class="trace hidden" id="trace" aria-label="检索轨迹"></section>
           <div class="citations hidden" id="citations"></div>
           <form class="question-form" id="questionForm">
             <label class="scope"><span>检索范围</span><select id="questionModule"><option value="">全部知识库</option><option value="standard-drafting">标准编写</option><option value="standards">标准</option><option value="policies">政策</option></select></label>
