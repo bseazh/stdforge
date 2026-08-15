@@ -7,7 +7,8 @@ const elements = {
   progressBar: document.querySelector('#progressBar'), resultEmpty: document.querySelector('#resultEmpty'), renderedResult: document.querySelector('#renderedResult'),
   sourceResult: document.querySelector('#sourceResult'), errorPanel: document.querySelector('#errorPanel'), errorMessage: document.querySelector('#errorMessage'),
   downloadBar: document.querySelector('#downloadBar'), downloadOriginal: document.querySelector('#downloadOriginal'), downloadMarkdown: document.querySelector('#downloadMarkdown'),
-  downloadArchive: document.querySelector('#downloadArchive'), resultMeta: document.querySelector('#resultMeta'), serverState: document.querySelector('#serverState'), toast: document.querySelector('#toast')
+  downloadArchive: document.querySelector('#downloadArchive'), resultMeta: document.querySelector('#resultMeta'), serverState: document.querySelector('#serverState'), toast: document.querySelector('#toast'),
+  feishuBar: document.querySelector('#feishuBar'), feishuDocUrl: document.querySelector('#feishuDocUrl'), syncFeishu: document.querySelector('#syncFeishu'), feishuMessage: document.querySelector('#feishuMessage')
 };
 
 let selectedFile;
@@ -62,6 +63,7 @@ function reset() {
   elements.sourceResult.classList.add('hidden');
   elements.errorPanel.classList.add('hidden');
   elements.downloadBar.classList.add('hidden');
+  elements.feishuBar.classList.add('hidden');
   elements.fileState.textContent = '未选择';
   elements.parseButton.disabled = true;
   elements.resetButton.disabled = true;
@@ -116,6 +118,7 @@ function showDone(job) {
   elements.renderedResult.classList.remove('hidden');
   elements.sourceResult.classList.add('hidden');
   elements.downloadBar.classList.remove('hidden');
+  elements.feishuBar.classList.remove('hidden');
   elements.downloadOriginal.href = `/api/jobs/${job.id}/download/original`;
   elements.downloadMarkdown.href = `/api/jobs/${job.id}/download/markdown`;
   elements.downloadArchive.href = `/api/jobs/${job.id}/download/archive`;
@@ -125,6 +128,26 @@ function showDone(job) {
   elements.parseButton.innerHTML = '<i data-lucide="check"></i>解析完成';
   lucide.createIcons();
   notify('PDF 解析完成');
+}
+
+async function syncToFeishu() {
+  const docUrl = elements.feishuDocUrl.value.trim();
+  if (!currentJob?.id) return;
+  if (!docUrl) return notify('请先粘贴飞书文档链接');
+  elements.syncFeishu.disabled = true;
+  elements.feishuMessage.textContent = '正在读取并追加解析结果';
+  try {
+    const response = await fetch(`/api/jobs/${currentJob.id}/sync/feishu`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ docUrl }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '飞书同步失败');
+    elements.feishuMessage.textContent = result.reused ? '该解析任务已同步到此文档' : '同步成功，已以追加方式写入';
+    elements.syncFeishu.innerHTML = '<i data-lucide="check"></i>已同步';
+    lucide.createIcons();
+    notify('解析结果已同步到飞书文档');
+  } catch (error) {
+    elements.feishuMessage.textContent = error.message;
+    elements.syncFeishu.disabled = false;
+  }
 }
 
 function showError(message) {
@@ -183,6 +206,7 @@ elements.dropzone.addEventListener('drop', event => { event.preventDefault(); el
 elements.parseButton.addEventListener('click', parseFile);
 elements.resetButton.addEventListener('click', reset);
 elements.removeFile.addEventListener('click', reset);
+elements.syncFeishu.addEventListener('click', syncToFeishu);
 document.querySelectorAll('.view-tabs button').forEach(button => button.addEventListener('click', () => {
   document.querySelectorAll('.view-tabs button').forEach(tab => tab.classList.toggle('active', tab === button));
   const sourceMode = button.dataset.mode === 'source';
@@ -192,7 +216,7 @@ document.querySelectorAll('.view-tabs button').forEach(button => button.addEvent
 
 fetch('/api/health').then(response => response.json()).then(health => {
   elements.serverState.className = `server-state ${health.ok && health.mineruConfigured ? 'ready' : 'error'}`;
-  elements.serverState.querySelector('em').textContent = health.mineruConfigured ? 'MinerU 服务已连接' : '缺少 MinerU 配置';
+  elements.serverState.querySelector('em').textContent = health.mineruConfigured ? (health.feishuConfigured ? 'MinerU / 飞书已连接' : 'MinerU 已连接，飞书未配置') : '缺少 MinerU 配置';
 }).catch(() => {
   elements.serverState.className = 'server-state error';
   elements.serverState.querySelector('em').textContent = '本地服务未启动';

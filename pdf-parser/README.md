@@ -25,3 +25,9 @@ PORT=4174 MINERU_TOKEN='<your-token>' node pdf-parser/server.mjs
 - 包含内容列表、版面 JSON、模型 JSON、图片和 Markdown 的完整 ZIP。
 
 令牌只从 `MINERU_TOKEN` 环境变量读取。上传文件和解析结果保存在 `pdf-parser/.runtime/`，该目录被 Git 忽略。
+
+## 飞书在线文档同步
+
+在仓库根目录 `.env.local` 配置 `FEISHU_APP_ID` 与 `FEISHU_APP_SECRET` 后，解析完成页面会显示“同步到飞书在线文档”。粘贴一个应用已被授予编辑权限的飞书文档或知识库文档链接，即可将本次 Markdown 以 `append` 模式追加到文末。
+
+服务端会先通过 `fetch-doc` 验证目标可访问，再调用飞书远程 MCP 的 `update-doc`。它不会覆盖现有文档；同一个解析任务再次同步到同一链接时会防止重复写入。

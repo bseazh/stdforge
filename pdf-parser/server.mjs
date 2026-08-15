@@ -6,15 +6,25 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { parsePdf } from './mineru-client.mjs';
+import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
 
 const root = resolve(import.meta.dirname);
 const runtimeRoot = join(root, '.runtime');
 const port = Number(process.env.PORT || 4173);
-const token = process.env.MINERU_TOKEN;
 const maxFileSize = 30 * 1024 * 1024;
 const jobs = new Map();
 
 await mkdir(runtimeRoot, { recursive: true });
+try {
+  const envText = await readFile(resolve(root, '../.env.local'), 'utf8');
+  for (const line of envText.split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
+  }
+} catch { /* .env.local is optional; deployment normally uses environment variables. */ }
+const token = process.env.MINERU_TOKEN;
+const feishuAppId = process.env.FEISHU_APP_ID;
+const feishuAppSecret = process.env.FEISHU_APP_SECRET;
 
 const mimeTypes = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
 function json(response, status, body) {
@@ -36,6 +46,11 @@ async function readRequestBody(request) {
     chunks.push(chunk);
   }
   return Buffer.concat(chunks);
+}
+
+async function readJsonRequest(request) {
+  const body = await readRequestBody(request);
+  try { return JSON.parse(body.toString('utf8')); } catch { throw new Error('请求内容必须是 JSON'); }
 }
 
 function publicJob(job) {
@@ -78,7 +93,7 @@ function sendDownload(response, path, downloadName, contentType) {
 
 async function handleApi(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') {
-    return json(response, 200, { ok: true, mineruConfigured: Boolean(token) });
+    return json(response, 200, { ok: true, mineruConfigured: Boolean(token), feishuConfigured: Boolean(feishuAppId && feishuAppSecret) });
   }
   if (request.method === 'POST' && url.pathname === '/api/parse') {
     if (!token) return json(response, 503, { error: '服务端未配置 MINERU_TOKEN' });
@@ -104,6 +119,27 @@ async function handleApi(request, response, url) {
   if (request.method === 'GET' && jobMatch) {
     const job = jobs.get(jobMatch[1]);
     return job ? json(response, 200, publicJob(job)) : json(response, 404, { error: '任务不存在或服务已重启' });
+  }
+  const syncMatch = url.pathname.match(/^\/api\/jobs\/([0-9a-f-]+)\/sync\/feishu$/);
+  if (request.method === 'POST' && syncMatch) {
+    const job = jobs.get(syncMatch[1]);
+    if (!job) return json(response, 404, { error: '任务不存在或服务已重启' });
+    if (job.state !== 'done') return json(response, 409, { error: 'PDF 解析尚未完成' });
+    if (!feishuAppId || !feishuAppSecret) return json(response, 503, { error: '服务端未配置飞书应用凭证' });
+    try {
+      const { docUrl } = await readJsonRequest(request);
+      if (!/^https:\/\/[^/]*feishu\.cn\/wiki\//.test(docUrl || '') && !/^https:\/\/[^/]*feishu\.cn\/docx\//.test(docUrl || '')) {
+        return json(response, 400, { error: '请输入有效的飞书文档或知识库文档链接' });
+      }
+      if (job.feishuSync?.docUrl === docUrl) return json(response, 200, { ...job.feishuSync, reused: true });
+      const marker = `StdForge PDF 解析结果 · ${job.id}`;
+      const markdown = `## ${marker}\n\n- 原始文件：${job.fileName}\n- 解析完成：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}\n- 解析引擎：MinerU VLM\n\n${job.markdown.replace(/!\[[^\]]*\]\([^\)]+\)/g, '> 解析图片请下载完整结果 ZIP 查看')}`;
+      const result = await appendToFeishuDocument({ appId: feishuAppId, appSecret: feishuAppSecret, docUrl, markdown });
+      job.feishuSync = { docUrl, syncedAt: new Date().toISOString(), ...result };
+      return json(response, 200, job.feishuSync);
+    } catch (error) {
+      return json(response, 502, { error: error.message });
+    }
   }
   const downloadMatch = url.pathname.match(/^\/api\/jobs\/([0-9a-f-]+)\/download\/(original|markdown|archive)$/);
   if (request.method === 'GET' && downloadMatch) {
@@ -145,4 +181,5 @@ const server = createServer(async (request, response) => {
 server.listen(port, '127.0.0.1', () => {
   console.log(`StdForge PDF Parser: http://127.0.0.1:${port}`);
   console.log(`MinerU: ${token ? 'configured' : 'missing MINERU_TOKEN'}`);
+  console.log(`Feishu MCP: ${feishuAppId && feishuAppSecret ? 'configured' : 'missing FEISHU_APP_ID or FEISHU_APP_SECRET'}`);
 });

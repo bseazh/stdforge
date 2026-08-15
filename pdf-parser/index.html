@@ -70,6 +70,10 @@
           <a class="button primary" id="downloadArchive"><i data-lucide="package-down"></i>完整结果 ZIP</a>
         </div>
       </section>
+      <section class="feishu-bar hidden" id="feishuBar">
+        <div><i data-lucide="notebook-pen"></i><span><strong>同步到飞书在线文档</strong><small id="feishuMessage">解析结果将以追加方式写入</small></span></div>
+        <div class="feishu-actions"><input id="feishuDocUrl" type="url" placeholder="粘贴飞书文档或知识库文档链接" aria-label="飞书文档链接" /><button class="button primary" id="syncFeishu"><i data-lucide="cloud-upload"></i>同步到飞书</button></div>
+      </section>
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"><i data-lucide="info"></i><span></span></div>
