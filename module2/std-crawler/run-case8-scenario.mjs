@@ -11,6 +11,7 @@ import {
   extractStandardsWithLlm,
   hydrateSamrStandardDetails,
 } from './crawl-samr.mjs'
+import { isApplianceFreshness } from './analysis-pipeline.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -30,7 +31,7 @@ const DEFAULT_QUERY_CONFIG = {
   pageSize: 20,
   maxItems: 24,
   searchConcurrency: 3,
-  llmConcurrency: 3,
+  llmConcurrency: 5,
   groups: [
     { group: '海信系', keywords: ['海信'], region: '广东省' },
     { group: '美的', keywords: ['美的'], region: '广东省' },
@@ -81,16 +82,7 @@ const GROUP_RULES = queryConfig.groups
 
 const matchGroup = (unit) => GROUP_RULES.find((rule) => rule.keywords.some((keyword) => unit.includes(keyword)))
 
-// ---------- 场景范围：家电制冷保鲜领域 ----------
-const isApplianceFreshness = (standard) => {
-  const title = standard.title || ''
-  const ics = standard.ics || ''
-  const ccs = standard.ccs || ''
-  if (!/冰箱|冷藏|冷柜|制冷器具|保鲜/.test(title)) return false
-  const icsHit = /^97\.(03|04)/.test(ics)
-  const ccsHit = /^Y6/.test(ccs)
-  return icsHit || ccsHit || /冰箱|冷柜/.test(title)
-}
+// ---------- 场景范围：家电制冷保鲜领域（复用 analysis-pipeline 领域过滤，口径来自 domain-config.mjs） ----------
 
 // 计划与已发布标准合并：同一标准号优先保留已发布版（gb/hb/db），计划版仅补充计划号/制修订信息
 const mergePlanAndPublished = (standards) => {

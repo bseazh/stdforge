@@ -106,6 +106,38 @@ const fetchJsonPost = async (url, body, { signal, retries = 1 } = {}) => {
   throw lastError
 }
 
+// 官网错误页特征：详情页返回“无法找到该页面 / 系统错误”（当前 gbDetailed 对国标/计划记录整体失效）
+const isSamrErrorPage = (html = '') => String(html || '').includes('无法找到该页面')
+
+// 详情页不可用时的兜底链接：标准号检索页（工作正常，可看到该标准）
+const searchUrlFor = (standardNo) => (standardNo ? `${SAMR_BASE_URL}/search/std?q=${encodeURIComponent(String(standardNo).trim())}` : '')
+
+// 按类型探测详情页可用性；不可用的类型把 url 降级为标准号检索页，原详情地址保留到 detailUrl
+const applyDetailLinkFallback = async (standards, { signal } = {}) => {
+  const probeTargets = new Map()
+  for (const standard of standards) {
+    if (standard?.url && !probeTargets.has(standard.rawType)) probeTargets.set(standard.rawType, standard)
+  }
+  const broken = new Set()
+  await Promise.all([...probeTargets.entries()].map(async ([type, standard]) => {
+    try {
+      const html = await fetchText(standard.url, { signal, retries: 1 })
+      if (isSamrErrorPage(html)) broken.add(type)
+    } catch {
+      // 探测失败不判定为损坏，保留原详情链接
+    }
+  }))
+  if (broken.size === 0) return { broken: [], changed: 0 }
+  let changed = 0
+  for (const standard of standards) {
+    if (!broken.has(standard.rawType) || !standard.standardNo) continue
+    standard.detailUrl = standard.url
+    standard.url = searchUrlFor(standard.standardNo)
+    changed += 1
+  }
+  return { broken: [...broken], changed }
+}
+
 const splitList = (value) => [...new Set(String(value || '')
   .split(/[、,，;；]/)
   .map((item) => item.trim())
@@ -213,6 +245,14 @@ export const crawlSamrSimpleSearch = async ({
 
   const sorted = [...standards.values()].sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''))
   logs.push({ level: '成功', stage: '标准收集', message: `简单检索去重后取得 ${sorted.length} 条记录（混合类型）` })
+  const { broken, changed } = await applyDetailLinkFallback(sorted, { signal })
+  if (changed > 0) {
+    logs.push({
+      level: '警告',
+      stage: '详情链接降级',
+      message: `官网详情页暂时不可用（无法找到该页面）：${broken.map((type) => TYPE_LABEL[type]).join('、')}，已降级 ${changed} 条为标准号检索页链接`,
+    })
+  }
   return {
     source: { name: '全国标准信息公共服务平台-简单检索', domain: 'std.samr.gov.cn', entryUrl: `${SAMR_BASE_URL}/search/std?q=${encodeURIComponent(safeKeyword)}` },
     query: { keyword: safeKeyword, maxPages: safeMaxPages },
@@ -360,6 +400,14 @@ export const crawlSamrStandards = async ({
 
   const sorted = [...standards.values()].sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''))
   logs.push({ level: '成功', stage: '标准收集', message: `并发 ${safeSearchConcurrency} 路检索完成，去重后取得 ${sorted.length} 条标准/计划记录` })
+  const { broken, changed } = await applyDetailLinkFallback(sorted, { signal })
+  if (changed > 0) {
+    logs.push({
+      level: '警告',
+      stage: '详情链接降级',
+      message: `官网详情页暂时不可用（无法找到该页面）：${broken.map((type) => TYPE_LABEL[type]).join('、')}，已降级 ${changed} 条为标准号检索页链接`,
+    })
+  }
 
   return {
     source: {
@@ -433,7 +481,23 @@ export const hydrateSamrStandardDetails = async (standards, { signal, concurrenc
         continue
       }
       try {
-        const html = await fetchText(standard.url, { signal })
+        const detailUrl = standard.detailUrl || standard.url
+        const html = await fetchText(detailUrl, { signal })
+        if (isSamrErrorPage(html)) {
+          const fallbackUrl = searchUrlFor(standard.standardNo)
+          hydrated[index] = {
+            ...standard,
+            detailFetchStatus: 'error',
+            detailFetchError: '官网详情页返回“无法找到该页面”，已降级为标准号检索页链接',
+            detailUrl,
+            url: fallbackUrl || standard.url,
+            detailKeyValues: {},
+            detailText: '',
+          }
+          doneCount += 1
+          if (typeof onProgress === 'function') onProgress({ done: doneCount, total: safe.length })
+          continue
+        }
         const detailKeyValues = parseSamrDetailKeyValues(html)
         const detailText = extractDetailText(html)
         const draftUnitsFromKv = splitList(detailKeyValues['起草单位'] || '')
@@ -666,7 +730,7 @@ export const extractStandardWithLlm = async (standard, { config = {}, signal } =
   return { ...standard, llmStatus: 'error', llmError: lastError instanceof Error ? lastError.message : 'LLM 提取失败' }
 }
 
-export const extractStandardsWithLlm = async (standards, { config = {}, concurrency = 4, maxItems = 20, signal, onProgress = null } = {}) => {
+export const extractStandardsWithLlm = async (standards, { config = {}, concurrency = 5, maxItems = 20, signal, onProgress = null } = {}) => {
   const safe = Array.isArray(standards) ? standards.slice(0, maxItems) : []
   const results = new Array(safe.length)
   let cursor = 0
@@ -705,7 +769,7 @@ if (isMain) {
   const extract = process.argv.includes('--extract')
   const concurrency = Number(parseArg('--concurrency', '6'))
   const searchConcurrency = Number(parseArg('--searchConcurrency', '3'))
-  const llmConcurrency = Math.min(Math.max(Number(parseArg('--llmConcurrency', '3')) || 1, 1), 8)
+  const llmConcurrency = Math.min(Math.max(Number(parseArg('--llmConcurrency', '5')) || 1, 1), 8)
 
   let result
   if (mode === 'simple' || mode === 'both') {

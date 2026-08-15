@@ -3,6 +3,32 @@
 > 状态：接口与字段已真实验证，原型可运行（`crawl-samr.mjs`）
 > 验证日期：2026-08-15
 > 关联项目：`Policyanalysize`（模块三爬取/分类管线可复用）
+> 案例7 已就绪：`crawl-tcrm.mjs` + `organization-pipeline.mjs` + `frontend/modules/organization.js`（详见 §11）
+
+## 0.5 案例5+6 合并报告（昨日标准采集 + 新国标预警推送）
+
+**模块 ID：`case56`**（`case56-pipeline.mjs`），固定检索**昨日**（Asia/Shanghai 时区）全国标准信息公共服务平台数据，一次执行同时产出：
+
+1. **案例5《外部标准自动采集报告》**：待办提醒（检索命中 / 相关度≥阈值 / 昨日新发布）、采集明细表、按类型与计划形式统计、采集日志；
+2. **案例6《新国标发布自动预警推送报告》**：监测概况、即将实施标准列表（距实施天数 + 90/30/7 节点）、分角色差异化推送、AI 解读；
+3. **只生成报告**：默认不跑 LLM 审查、不接邮件推送；审查能力保留为可选项（`withReview: true` 或 CLI `--review`），推送入口已从 case56 前端移除（其他模块的推送不受影响）。
+
+统计口径说明：检索命中的记录可能是**在审国家标准计划**（计划记录无发布日期，日期窗口仅对已发布标准生效），因此报告严格区分「昨日检索命中」与「昨日新发布标准公告」，统计数字由代码精确计算，LLM 只生成标题、摘要、解读与推送文案，避免模型自行重算导致数字失真。
+
+**邮件推送服务：`../pdf-parser/server.mjs`**（`HOST=0.0.0.0 PORT=4175 node pdf-parser/server.mjs`）
+
+- 凭据仅经 `pdf-parser/.env.smtp.local`（权限 600）或部署平台 Secret 注入：`SMTP_HOST/SMTP_PORT/SMTP_SECURE/SMTP_USER/SMTP_PASS/SMTP_FROM/NOTIFICATION_RECIPIENTS/NOTIFICATION_TEST_ACCESS_TOKEN`，**禁止写入前端、Git、README 或日志**；163 默认 `smtp.163.com:465 + SSL`；
+- 独立邮件测试页 `/mail-test`：展示/勾选/新增/删除测试收件人（管理配置收件人不可删，测试收件人最多 10 个），首次新增/删除/发送需输入管理验证码建立浏览器会话授权（24 小时有效）；
+- 服务端强制：收件人白名单校验、发送限频（会话 60 秒 3 封 / IP 1 小时 12 封 / 全服务 24 小时 50 封），禁止成为开放邮件转发器；
+- **每个业务模块都有「推送审批 → 推送邮箱」**：case56 默认只生成报告、不参与推送（`POST /api/mail/send-reports` 保留为旧调用兼容别名）；collection / alert / analysis / organization 先 `POST /api/mail/approve` 记录审批人/时间，再 `POST /api/mail/push` 推送；
+- 推送接口：`POST /api/mail/push { moduleId, recipients? }`（通用，需审批 + 会话 + 限频 + 白名单）；`GET /api/mail/latest?moduleId=` 返回模块最新结果的推送状态摘要；
+- `/api/health` 返回 `smtpConfigured` 与各模块 `latest` 推送状态；统一收件人维护入口为平台壳右上角「📮 收件人管理」（/mail-test）。
+
+自检：
+```powershell
+node pdf-parser/test-smtp.mjs                    # SMTP 投递自检
+node pdf-parser/test-mail-page.mjs <管理验证码>  # 邮件测试页端到端（平台壳/授权/收件人增删/实际投递）
+```
 
 ## 0. 结论摘要
 
@@ -230,17 +256,33 @@ GET https://std.samr.gov.cn/gb/search/gbAdvancedSearchPage
 std-crawler/
   核心代码
     crawl-samr.mjs            # 爬虫：高级/简单检索、去重、并行详情补抓、显式键值解析、LLM 提取、hbba 补抓、CLI
-    case8-pipeline.mjs        # 案例8分析管线：可配置查询 → 爬取 → 领域过滤 → 详情 → LLM → 合并 → 聚合 → LLM结论/报告标题
-    serve-demo.mjs            # 本地服务：托管演示页 + 异步分析任务接口（POST 创建 / GET 轮询）
-    demo-app.js               # 演示页应用：查询配置/历史、任务轮询、图表渲染、调试面板、导出
+    crawl-tcrm.mjs            # 爬虫（案例7）：全国专业标准化技术委员会信息公示系统（征集委员/征集意见/公告）+ 广东市监局 best-effort
+    analysis-pipeline.mjs     # 竞争分析管线：可配置查询 → 爬取 → 领域过滤 → 详情 → LLM → 合并 → 聚合 → LLM结论/报告标题
+    collection-pipeline.mjs   # 采集模块管线：关键词×数据源 → 爬取 → LLM 提取 → 相关度评分 → { items, log, stats }
+    alert-pipeline.mjs        # 预警模块管线：爬取 → 筛选新发布/即将实施 → 距实施天数 + 90/30/7 节点 → { alerts, upcoming, stats }
+    organization-pipeline.mjs # 组织动态管线（案例7）：标委会通知采集 → 关键词过滤 → 详情补抓 → LLM 提取 → 专家匹配 → 推荐+待办跟踪
+    expert-db.mjs             # 企业内部专家库（案例7 匹配数据源，可被外部配置覆盖）
+    domain-config.mjs         # 领域主题配置中枢：内置默认 + 用户自定义（domain-config.json）+ 加载/保存 + CLI
+    capability-registry.mjs   # 业务模块注册表：模块 ID → 管线 + 默认配置（统一分派）
+    serve-demo.mjs            # 本地服务：托管平台壳 + 按 moduleId 分派异步任务接口（POST 创建 / GET 轮询）
+    case8-pipeline.mjs        # 兼容转发 shim（转发到 analysis-pipeline.mjs）
     run-case8-scenario.mjs    # CLI 场景脚本：读 case8-config.json → 全流程 → 输出到 output/
+  前端（原生 ES Modules + ECharts，零框架）
+    frontend/app.js           # 平台壳入口：功能切换 + 模块懒加载 + 状态保留
+    frontend/core/api.js      # 统一 API 客户端（createJob/pollJob/fetchHealth）
+    frontend/core/ui.js       # 共享 UI（toast/进度/配置历史/弹窗/格式化/调试面板）
+    frontend/modules/collection.js   # 采集视图（原案例5）
+    frontend/modules/alert.js        # 预警视图（原案例6）
+    frontend/modules/analysis.js     # 竞争分析视图（原案例8，由 demo-app.js 迁移）
+    frontend/modules/organization.js # 组织动态视图（原案例7，标委会换届专家推荐，已就绪）
   配置
     case8-config.json         # 默认查询条件（关键词/类型/日期/并发/集团映射），页面与 CLI 共用
     ds配置.json               # LLM API 配置（含密钥，已加入 .gitignore，禁止提交）
+    domain-config.json        # 领域主题自定义配置（可选，见下「领域配置」；首次写入时生成）
   测试
     test-llm-extract.mjs      # 显式键值解析 / 无配置降级 / mock 模型端到端
-    test-demo-server.mjs      # 任务流冒烟测试（真实爬取 + LLM + 调试信息）
-    test-page-render.mjs      # 无头浏览器端到端（空状态/配置历史/分析/调试面板/本地时间日志）
+    test-demo-server.mjs      # 任务流冒烟测试（真实爬取 + LLM + 调试信息，含案例7 组织动态）
+    test-page-render.mjs      # 无头浏览器端到端（功能切换/四面板渲染/组织动态/全链路分析/状态保留/本地时间日志）
   文档
     README.md                 # 本方案
   输出（可由 run-case8-scenario.mjs 重新生成）
@@ -268,18 +310,73 @@ node test-page-render.mjs
 node crawl-samr.mjs --keywords "冰箱,保鲜" --types gb,hb,plan --start 2021-01-01 --end 2026-08-15 --maxPages 1 --pageSize 20
 ```
 
-## 10. 演示页接入（competitor-analysis-demo.html）
+## 9.1 领域主题配置（关键词 + ICS/CCS 类）
 
-与 `std-crawler/` 同级的 `competitor-analysis-demo.html` 已重设计为**查询条件可配置 + 真实爬取 + LLM 实时分析**（所有路径均为相对路径，整个目录可整体迁移）：
+相关度评分（`scoreRelevance`）与竞争分析领域过滤（`isApplianceFreshness`）共用一个**领域主题配置**，由 `domain-config.mjs` 统一提供，消除原先散落在多个文件的硬编码副本（collection/case56/alert/analysis/run-case8 各自定义）。
+
+一个「领域」= 关键词（召回） + 类型 + ICS/CCS 白名单（评分 +40 / 硬过滤） + 相关度阈值 + 标题领域词。内置默认领域「家电制冷保鲜」与改造前口径完全一致。
+
+```text
+领域「家电制冷保鲜」（内置默认）
+  关键词: 冰箱 / 保鲜 / 食品保鲜 / 制冷 / 家用电器 / 家电
+  类型: gb, hb, db, plan
+  ICS 白名单: ^97\.(03|04)   （家用电气综合 + 厨房设备，含 97.040.30 家用制冷设备）
+  CCS 白名单: ^Y6            （Y6 家用电器大类）
+  相关度阈值: 80
+  标题领域词: 冰箱|冷藏|冷柜|制冷器具|保鲜
+  标题兜底词: 冰箱|冷柜
+```
+
+自定义配置：CLI 写入 `domain-config.json`（首次保存时自动生成，仅存自定义内容，内置默认不落盘）。
+
+```powershell
+node domain-config.mjs list                                          # 列出所有领域（内置+自定义）
+node domain-config.mjs show 家电制冷保鲜                             # 查看某领域生效配置
+node domain-config.mjs add 食品保鲜 --keywords "食品,保鲜" --ics "^67\." --ccs "^X4" --threshold 70 --types gb,hb
+node domain-config.mjs add 家电制冷保鲜 --threshold 75               # 覆盖内置领域的阈值
+node domain-config.mjs remove 食品保鲜                               # 删除自定义领域（内置只能覆盖不能删）
+node domain-config.mjs reset                                         # 清空全部自定义配置
+```
+
+自定义文件示例（`domain-config.json`）：
+
+```json
+{
+  "食品保鲜": {
+    "keywords": ["食品", "保鲜"],
+    "types": ["gb", "hb"],
+    "icsWhitelist": ["^67\\."],
+    "ccsWhitelist": ["^X4"],
+    "relevanceThreshold": 70
+  }
+}
+```
+
+字段说明：
+
+| 字段 | 含义 | 缺省行为 |
+| --- | --- | --- |
+| `keywords` | 召回关键词 + 评分标题/文本命中 | 回退内置默认 |
+| `types` | 标准类型（gb/hb/db/plan） | 回退内置默认 |
+| `icsWhitelist` / `ccsWhitelist` | 分类号白名单（字符串正则数组）；显式写 `[]` 表示关闭该白名单 | 未写回退内置；写 `[]` 关闭 |
+| `relevanceThreshold` | 相关度阈值（≥ 触发「⚠ 提醒」） | 回退内置 80 |
+| `titlePattern` / `titleFallback` | 竞争分析硬过滤的标题领域词/兜底词（正则字符串） | 回退内置 |
+
+消费方：`scoreRelevance(standard, { domain })`、`runCollection({ domain })`、`runAnalysis({ domain })`、`isApplianceFreshness(standard, domain)`、模块注册表 `capability-registry.mjs` 默认配置。未指定 `domain` 时一律使用内置默认领域，保证旧调用（如 case56 报告、`test-demo-server.mjs`）行为不变。
+
+## 10. 平台页接入（competitor-analysis-demo.html）
+
+与 `std-crawler/` 同级的 `competitor-analysis-demo.html` 已重设计为**平台壳**：标准采集 / 标准预警 / 竞争分析 / 组织动态 四个功能模块切换（所有路径均为相对路径，整个目录可整体迁移）：
 
 | 文件 | 作用 |
 | --- | --- |
-| `competitor-analysis-demo.html` | 演示大盘：查询条件面板 + 进度日志 + 四图表 + AI结论 + 下钻 + 导出 |
-| `demo-app.js` | 页面应用：配置校验 → 异步任务轮询 → 结果渲染 → 导出（打印/CSV） |
-| `case8-pipeline.mjs` | 共享分析管线：可配置查询 → 爬取 → 详情 → LLM 提取 → 合并 → 聚合 → LLM 结论/报告标题 |
-| `serve-demo.mjs` | 本地服务：托管页面 + 异步分析任务接口（POST 创建 / GET 轮询进度） |
-| `test-demo-server.mjs` | 任务流冒烟测试（真实爬取 + LLM，已通过） |
-| `test-page-render.mjs` | 无头浏览器渲染测试（配置面板/图表/无 JS 错误，已通过） |
+| `competitor-analysis-demo.html` | 平台壳：功能切换导航 + 模块承载区（无内联 onclick，由 frontend/app.js 驱动） |
+| `frontend/app.js` | 入口：health 渲染切换项 → 懒加载模块 → 切换保留各模块状态 |
+| `frontend/core/*` | 公共核心：统一 API 客户端 + 共享 UI 组件 |
+| `frontend/modules/*` | 四个业务模块视图（采集/预警/竞争分析/组织动态），遵循模块契约 |
+| `serve-demo.mjs` | 本地服务：托管平台壳 + frontend 静态资源 + 按 moduleId 分派异步任务 |
+| `test-demo-server.mjs` | 任务流冒烟测试（真实爬取 + LLM，含案例7，已通过） |
+| `test-page-render.mjs` | 无头浏览器渲染测试（功能切换/四面板/组织动态/全链路/状态保留，已通过） |
 
 使用方式：
 
@@ -303,15 +400,73 @@ node std-crawler/serve-demo.mjs
 - 静态双击 HTML 时提示启动服务；服务模式下页面仅提示连接状态，不会自动爬取；
 - 口径提示：主导判定可选“起草单位首位 / 前3位”；行业标准（QB/T 等）起草单位未公开时明细显示“暂无公开起草单位数据”。
 
-## 11. 待办
+## 11. 案例7 标委会换届专家推荐（组织动态模块）
+
+### 11.1 需求对应
+
+对应《需求.md》模块二-③「外部标准组织筹建及换届信息：对接技术委员会筹备、换届及征集委员等通知网站」，
+以及《开发测试演示案例手册》案例7「标委会换届专家推荐」。
+
+### 11.2 数据源（已实测验证）
+
+| 数据源 | 说明 | 状态 |
+| --- | --- | --- |
+| 全国专业标准化技术委员会信息公示系统（org.sacinfo.org.cn:8088/tcrm） | 征集委员列表（BUILD 筹建 / CHANGE 换届）、征集意见公示（筹建/调整/换届方案）、公告；详情页含征集范围、委员条件、截止日期、联系方式、登记表下载 | ✅ 已实测（UTF-8，列表+详情均可解析） |
+| 广东省市场监督管理局（amr.gd.gov.cn） | gkmlpt 搜索（关键词=技术委员会），真实结果为 search.gd.gov.cn JSONP（Vue SPA） | 🔶 best-effort：本环境不可达时记录告警并降级，不阻塞主流程（二期接入 JSONP 契约） |
+
+实测说明：2026-08-15 时点，全国标委会公示系统征集委员 12 条、征集意见公示 27 条、公告 157 条，
+与「冰箱/家电/家用电器/制冷」关键词**零命中**（当期无家电领域换届/征集通知），因此按《需求改造》二-③
+「采集广度可用受控演示数据代替」原则，在零命中时注入 **SAC/TC46 全国家用电器标准化技术委员会换届征集委员**
+演示通知（`isDemo: true`，标注「受控演示场景」），保证专家匹配与推荐闭环可演示。
+
+### 11.3 管线流程
+
+```text
+crawlTcrmNotices（全国标委会：征集委员/征集意见/公告）
+  + crawlGdAmrNotices（广东市监局 best-effort）
+  → 关键词过滤（冰箱/家电/家用电器/制冷）→ 零命中注入 SAC/TC46 演示通知
+  → hydrateTcrmNotices（详情补抓：征集范围/委员条件/截止日期/联系方式/附件）
+  → extractTcNoticesWithLlm（LLM 提取：委员会名称/代码/专业领域/委员条件/联系方式，DeepSeek 实测通过）
+  → scoreExpertMatch（与 expert-db.mjs 专家库匹配，权重可配置：职称/年限/标准经历/专业领域）
+  → 推荐列表（按匹配度排序）+ 待办跟踪（截止前 15/3 天提醒）
+```
+
+### 11.4 专家匹配算法
+
+- 权重可配置（默认 `{ title: 30, years: 20, stdExp: 30, field: 20 }`），前端配置面板可调；
+- 职称按等级比较（中级/副高级/正高级），未达标按 40% 计；工作年限按比例计；
+- 标准经历区分「主导 ≥3 / 2 / 1 项 / 仅参与」梯度（案例7 期望 98/92/85 差异化排序）；
+- 专业领域按通知征集范围与专家专业领域交集比例计分；
+- 每条匹配输出 `score + breakdown + reasons`（匹配原因可溯源），支持人工调整权重与顺序。
+
+### 11.5 输出契约
+
+`POST /api/analyze { moduleId: 'organization', config }` → `result = { notices, recommendations, trackings, expertPool, stats }`
+
+- `notices[]`：换届/征集通知（委员会名称、SAC/TC 代码、通知类型、发布日期、截止日期、专业领域、委员条件、联系方式、来源、isDemo）；
+- `recommendations[]`：每条通知的专家匹配列表（按匹配度降序）；
+- `trackings[]`：待办跟踪（距截止天数、命中提醒节点 15/3、urgent）；
+- `expertPool[]`：内部专家库（生产可对接 HR/专家系统）；
+- `stats`：采集统计（通知数、演示场景标记、LLM 提取成功数、匹配专家数、权重配置）。
+
+### 11.6 前端视图
+
+组织动态模块视图（`frontend/modules/organization.js`）：
+- 配置区：关键词、通知类型（征集委员/征集意见公示/公告）、截止前提醒天数、专家匹配权重；
+- 通知列表：委员会代码、通知类型、标题（链接原文）、发布日期、截止倒计时、专业领域、委员条件、联系方式、演示标记；
+- 专家匹配推荐表：匹配度/姓名/部门/职称/专业领域/参与标准经历/匹配原因/推荐建议，行内「导出委员推荐表(CSV)」；
+- 待办跟踪：截止倒计时 + 提前 15/3 天提醒节点。
+
+## 12. 待办
 
 1. 将 `crawlSamrStandards` 接入 `Policyanalysize`（vite 中间件新增 `/api/crawl/samr`，或独立服务）；
 2. 建企业集团映射表：海信容声（广东）冰箱、海信冰箱、海信空调、海信家电 → 海信系；合肥美的 → 美的；青岛海尔/海尔智家 → 海尔；珠海格力 → 格力；长虹美菱/合肥华凌 → 美菱；
 3. 建起草单位注册地知识库（用于省份地图）；
 4. 把 `extractStandardWithLlm` 的 LLM 提取并入正式服务（可人工覆盖，复用 `policy-classifier.mjs` 的配置与重试模式）；
-5. 落库与调度：SQLite 主键去重 + 每日增量；二期逆向 std.miit.gov.cn POST 契约。
+5. 落库与调度：SQLite 主键去重 + 每日增量；二期逆向 std.miit.gov.cn POST 契约；
+6. 案例7 二期：逆向 search.gd.gov.cn JSONP 契约接入广东市监局真实结果；专家库对接企业 HR/专家系统；委员推荐表输出 docx（当前为 CSV）。
 
-## 12. 风险与边界
+## 13. 风险与边界
 
 - 行业标准起草单位公开程度不一：SAMR 部分记录无、hbba 部分记录为空，统计时须标注“起草单位未公开”，LLM 也不得臆造；
 - 接口为政府公开数据，需保持低频、标识 UA、尊重访问策略（对应赛题“依据海信对外部网站访问策略”）；
