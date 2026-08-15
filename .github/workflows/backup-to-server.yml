@@ -41,7 +41,8 @@ jobs:
           DEPLOY_PATH: /home/ubuntu/Project/stdforge
         run: |
           ssh "$DEPLOY_TARGET" "mkdir -p '$DEPLOY_PATH'"
-          rsync -az --delete --timeout=120 \
+          timeout 180s rsync -az --delete --timeout=120 \
+            --exclude='.git/' \
             --exclude='.git/index.lock' \
             --exclude='.git/hooks/' \
             --exclude='.env' \
