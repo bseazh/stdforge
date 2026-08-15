@@ -71,6 +71,12 @@ jobs:
             printf 'FEISHU_INITIATOR_OPEN_ID=%s\n' "$FEISHU_INITIATOR_OPEN_ID"
           } | base64 | ssh "$DEPLOY_TARGET" "base64 -d > '$DEPLOY_PATH/.env.local' && chmod 600 '$DEPLOY_PATH/.env.local'"
 
+      - name: Install parser runtime dependencies
+        env:
+          DEPLOY_PATH: /home/ubuntu/Project/stdforge
+        run: |
+          ssh "$DEPLOY_TARGET" "cd '$DEPLOY_PATH' && npm ci --omit=dev"
+
       - name: Restart the PDF parser service
         env:
           DEPLOY_PATH: /home/ubuntu/Project/stdforge
