@@ -75,7 +75,27 @@ document.querySelector('#runAudit').addEventListener('click', () => { setFlowSta
 document.querySelector('#refreshSignals').addEventListener('click', () => notify('已同步 12 条标准公告与组织信息'));
 document.querySelector('#collectSource').addEventListener('click', () => notify('已采集公开元数据并写入来源留痕'));
 document.querySelector('#generateBrief').addEventListener('click', () => notify('已生成政策解读草稿，等待政策研究员审核'));
-document.querySelector('#addComment').addEventListener('click', () => notify('已向 3 位评审人发起条款级评审'));
+document.querySelector('#addComment').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  if (button.disabled) return;
+  button.disabled = true;
+  const originalContent = button.innerHTML;
+  button.innerHTML = '<i data-lucide="loader-circle"></i>发送通知中';
+  lucide.createIcons();
+  try {
+    const response = await fetch('/api/notifications/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '邮件通知发送失败');
+    setFlowStage(3);
+    notify(`已发起专家评审，邮件通知已投递至 ${result.accepted} 个配置收件人`);
+  } catch (error) {
+    notify(error.message || '邮件通知发送失败，请检查服务端配置');
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalContent;
+    lucide.createIcons();
+  }
+});
 document.querySelector('#saveClause').addEventListener('click', () => notify('条款 v0.3 已保存，修订留痕已更新'));
 document.querySelector('#applySuggestion').addEventListener('click', () => { document.querySelector('#clauseEditor').value += ' 检查结果应符合附录 A 表 A.1 的要求。'; notify('已应用 AI 建议，请人工确认后保存'); });
 

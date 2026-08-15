@@ -12,7 +12,7 @@
 - 模块二：公开标准网站的元数据采集、关联标准追踪、起草单位/领域关联入口。
 - 模块三：政策采集后的分类、原文依据、AI 解读草稿和人工审核状态。
 
-这是一个零构建依赖的前端原型。直接在浏览器打开 `index.html` 即可运行，所有交互使用模拟数据，不会连接外部站点或下载文件。
+这是一个零构建依赖的前端原型。直接在浏览器打开 `index.html` 即可运行，除邮件通知外的交互均使用模拟数据，不会连接外部站点或下载文件。
 
 ## 本地运行
 
@@ -23,6 +23,20 @@ open index.html
 ```
 
 也可以用任意静态 HTTP 服务打开目录。
+
+## 邮件通知
+
+“发起评审”会调用服务端 `POST /api/notifications/review`，向 `NOTIFICATION_RECIPIENTS` 中预先配置的地址发送评审通知。收件人、邮件正文和发件地址均不由浏览器传入，因此公开页面不会成为邮件转发器；服务端默认将连续发送限制为每 60 秒一次。
+
+将 `.env.example` 复制为本机 `.env.smtp.local` 并填写 SMTP 授权码，`.env.smtp.local` 已被 Git 忽略，且不会覆盖已有的飞书 `.env.local`。163 邮箱使用 `smtp.163.com:465` 和 SSL：
+
+```bash
+cd stdforge
+cp .env.example .env.smtp.local
+npm run start:parser
+```
+
+部署环境中的 Caddy 已将主工作台的 `/api/*` 转发到该服务，因此进入“标准编制”后点击“发起评审”即可发送通知。不要把 SMTP 授权码写进前端代码、Kubernetes ConfigMap 或 Git 仓库；生产环境应改用部署平台的 Secret 注入相同环境变量。
 
 ## MinerU PDF 解析
 

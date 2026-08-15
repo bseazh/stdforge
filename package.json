@@ -1,0 +1,28 @@
+{
+  "name": "stdforge",
+  "version": "1.0.0",
+  "description": "StdForge 是一个面向标准化工程师与政策研究人员的标准全生命周期协同平台演示。它把“标准公告采集、文件解析、条款级审核与协同修订、政策解读”放在同一条可追溯流程中。",
+  "main": "pdf-parser/server.mjs",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start:parser": "node pdf-parser/server.mjs",
+    "check": "node --check app.js && node --check pdf-parser/server.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bseazh/stdforge.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "bugs": {
+    "url": "https://github.com/bseazh/stdforge/issues"
+  },
+  "homepage": "https://github.com/bseazh/stdforge#readme",
+  "dependencies": {
+    "nodemailer": "^9.0.5"
+  }
+}

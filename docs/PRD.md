@@ -39,6 +39,7 @@ StdForge 是面向标准化工程师、政策研究人员和评审专家的标�
 - 导入 PDF/DOCX；记录文件哈希、来源 URL、导入人、导入时间。
 - 解析为条款树，支持范围、引用文件、术语、技术要求、试验方法、附录等类型。
 - 条款编辑、批注、版本快照、差异比较、采纳/关闭审核问题。
+- 发起评审时向服务端预配置的评审邮箱发送通知；浏览器不得指定收件人或邮件正文。
 - 规则审核：规范性用语、缺少可验证条件、单位/范围、术语不一致、引用文件版本。
 - AI 仅生成候选条款或修改建议，必须展示依据和人工确认操作。
 
@@ -78,6 +79,7 @@ Reference: id, standardId, standardNo, title, datedReference, version, status
 ReviewIssue: id, clauseId, ruleId, severity, evidence, suggestion, status
 Revision: id, clauseId, beforeContent, afterContent, reason, author, createdAt
 Comment: id, clauseId, author, content, decision, createdAt
+NotificationEvent: id, type, standardId, recipients, status, sentAt, providerMessageId
 SourceRecord: id, sourceName, sourceUrl, fetchedAt, rawHash, accessStatus
 Policy: id, title, authority, publishedAt, sourceUrl, category, status
 PolicyEvidence: id, policyId, excerpt, location, interpretationId
@@ -92,6 +94,7 @@ PolicyEvidence: id, policyId, excerpt, location, interpretationId
 | `GET /api/standards/{id}` | 查询标准与条款树 | MyBatis / JPA 查询服务 |
 | `POST /api/audits` | 运行规则审核 | 规则引擎 + LLM API |
 | `POST /api/clauses/{id}/revisions` | 保存条款修订 | 数据库事务 + diff-match-patch |
+| `POST /api/notifications/review` | 向预配置评审组发送通知 | SMTP 服务端适配器，频率限制 |
 | `POST /api/sources/{id}/collect` | 采集来源公开元数据 | Scrapy 服务或内部数据 API |
 | `POST /api/policies/{id}/interpretations` | 生成政策草稿 | RAG + LLM API，强制人工审核 |
 
@@ -102,6 +105,7 @@ PolicyEvidence: id, policyId, excerpt, location, interpretationId
 3. 修改任一条款后可显示修改前后内容、修改人和时间。
 4. 至少展示 3 条关联标准公告、1 条政策解读及其原文依据。
 5. 演示时可在 5 分钟内完整演示“导入 -> 审核 -> 修订 -> 评审 -> 关联信息”流程。
+6. 发起评审后，服务端可向预配置邮箱发送通知；未配置 SMTP 时清晰提示，不允许浏览器指定任意收件人。
 
 ## 9. 后续迭代
 

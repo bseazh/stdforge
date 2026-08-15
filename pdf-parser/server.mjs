@@ -5,6 +5,7 @@ import { createReadStream } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import nodemailer from 'nodemailer';
 import { parsePdf, ResultDownloadError } from './mineru-client.mjs';
 import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
 
@@ -16,16 +17,42 @@ const maxFileSize = 30 * 1024 * 1024;
 const jobs = new Map();
 
 await mkdir(runtimeRoot, { recursive: true });
-try {
-  const envText = await readFile(resolve(root, '../.env.local'), 'utf8');
-  for (const line of envText.split(/\r?\n/)) {
-    const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
-    if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
-  }
-} catch { /* .env.local is optional; deployment normally uses environment variables. */ }
+for (const envFile of ['.env.local', '.env.smtp.local']) {
+  try {
+    const envText = await readFile(resolve(root, `../${envFile}`), 'utf8');
+    for (const line of envText.split(/\r?\n/)) {
+      const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+      if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
+    }
+  } catch { /* Local config files are optional; deployment normally uses environment variables. */ }
+}
 const token = process.env.MINERU_TOKEN;
 const feishuAppId = process.env.FEISHU_APP_ID;
 const feishuAppSecret = process.env.FEISHU_APP_SECRET;
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = Number(process.env.SMTP_PORT || 465);
+const smtpSecure = process.env.SMTP_SECURE !== 'false';
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+const smtpFrom = process.env.SMTP_FROM || smtpUser;
+const notificationRecipients = (process.env.NOTIFICATION_RECIPIENTS || '')
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean);
+const notificationCooldownMs = Math.max(0, Number(process.env.NOTIFICATION_COOLDOWN_MS || 60_000));
+const smtpConfigured = Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom && notificationRecipients.length);
+const transporter = smtpConfigured
+  ? nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: { user: smtpUser, pass: smtpPass },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000
+    })
+  : null;
+let lastNotificationAt = 0;
 
 const mimeTypes = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
 function json(response, status, body) {
@@ -70,6 +97,37 @@ function publicJob(job) {
   };
 }
 
+async function sendReviewNotification() {
+  if (!transporter) throw new Error('服务端未配置 SMTP 邮件通知');
+  const now = new Date();
+  const sent = await transporter.sendMail({
+    from: smtpFrom,
+    to: notificationRecipients,
+    subject: '[StdForge] GB/T 46274-2025 待专家评审',
+    text: [
+      'StdForge 已发起标准条款级评审。',
+      '',
+      '标准：GB/T 46274-2025 二手家用电器产品品质鉴定规范 洗衣机',
+      '当前版本：v0.3 草案',
+      '待处理问题：4 项',
+      `发起时间：${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`,
+      '',
+      '请登录 StdForge 查看条款、提交意见并完成评审。'
+    ].join('\n'),
+    html: `
+      <h2>标准条款级评审待处理</h2>
+      <p>StdForge 已发起标准条款级评审。</p>
+      <table cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+        <tr><td style="padding:4px 16px 4px 0;color:#64748b">标准</td><td>GB/T 46274-2025 二手家用电器产品品质鉴定规范 洗衣机</td></tr>
+        <tr><td style="padding:4px 16px 4px 0;color:#64748b">当前版本</td><td>v0.3 草案</td></tr>
+        <tr><td style="padding:4px 16px 4px 0;color:#64748b">待处理问题</td><td>4 项</td></tr>
+        <tr><td style="padding:4px 16px 4px 0;color:#64748b">发起时间</td><td>${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}</td></tr>
+      </table>
+      <p>请登录 StdForge 查看条款、提交意见并完成评审。</p>`
+  });
+  return { messageId: sent.messageId, accepted: sent.accepted?.length || 0 };
+}
+
 async function startParse(job) {
   try {
     const result = await parsePdf({
@@ -108,7 +166,23 @@ function sendDownload(response, path, downloadName, contentType) {
 
 async function handleApi(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') {
-    return json(response, 200, { ok: true, mineruConfigured: Boolean(token), feishuConfigured: Boolean(feishuAppId && feishuAppSecret) });
+    return json(response, 200, { ok: true, mineruConfigured: Boolean(token), feishuConfigured: Boolean(feishuAppId && feishuAppSecret), smtpConfigured });
+  }
+  if (request.method === 'POST' && url.pathname === '/api/notifications/review') {
+    if (!smtpConfigured) return json(response, 503, { error: '服务端未配置 SMTP 邮件通知' });
+    const elapsed = Date.now() - lastNotificationAt;
+    if (elapsed < notificationCooldownMs) {
+      return json(response, 429, { error: '通知发送过于频繁，请稍后重试', retryAfterSeconds: Math.ceil((notificationCooldownMs - elapsed) / 1000) });
+    }
+    try {
+      await readRequestBody(request);
+      const result = await sendReviewNotification();
+      lastNotificationAt = Date.now();
+      return json(response, 200, { ok: true, accepted: result.accepted });
+    } catch (error) {
+      console.error('SMTP notification failed:', error.code || error.message);
+      return json(response, 502, { error: '邮件服务器拒绝发送，请检查 SMTP 配置或授权码' });
+    }
   }
   if (request.method === 'POST' && url.pathname === '/api/parse') {
     if (!token) return json(response, 503, { error: '服务端未配置 MINERU_TOKEN' });
@@ -197,4 +271,5 @@ server.listen(port, host, () => {
   console.log(`StdForge PDF Parser: http://${host}:${port}`);
   console.log(`MinerU: ${token ? 'configured' : 'missing MINERU_TOKEN'}`);
   console.log(`Feishu MCP: ${feishuAppId && feishuAppSecret ? 'configured' : 'missing FEISHU_APP_ID or FEISHU_APP_SECRET'}`);
+  console.log(`SMTP notifications: ${smtpConfigured ? 'configured' : 'missing SMTP configuration'}`);
 });

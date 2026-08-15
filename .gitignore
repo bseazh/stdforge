@@ -5,3 +5,6 @@ pdf-parser/.runtime/
 # Local secrets must never enter the repository.
 .env
 .env.*
+
+# Installed dependencies are restored from package-lock.json.
+node_modules/
