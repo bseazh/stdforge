@@ -24,8 +24,8 @@
       <section class="bilingual-hero compact-hero">
         <div>
           <p>需求一-③ · 中英文版本同步输出</p>
-          <h1>中英文标准草案对照工作台</h1>
-          <span>左侧整篇中文，右侧整篇英文，按 Markdown 文档形式同步查看、更新和下载。</span>
+          <h1>中英文标准草案双页对译</h1>
+          <span>上游中文标准草案完成后，一键生成右侧英文版；演示区按 A4/PDF 双页摊开效果展示，便于逐页校对和对外交流。</span>
         </div>
       </section>
 
@@ -47,7 +47,8 @@
 
         <section class="panel bilingual-output-panel">
           <div class="section-heading compact">
-            <div><p>Markdown 对照稿</p><h2 id="outputTitle">中英文对照结果</h2></div>
+            <div><p>PDF 双页预览</p><h2 id="outputTitle">中英文对照结果</h2></div>
+            <span class="section-note">左：中文原文 · 右：英文译文</span>
           </div>
           <div class="panel-body">
             <div class="empty-output" id="emptyOutput">
@@ -56,7 +57,7 @@
               <span>生成后左侧是一整份中文 Markdown，右侧是一整份英文 Markdown。</span>
             </div>
             <div class="parallel-editor hidden" id="parallelEditor">
-              <div class="parallel-heading"><span>中文 Markdown</span><i></i><span>English Markdown</span></div>
+              <div class="parallel-heading"><span>中文标准草案</span><i></i><span>English Draft</span></div>
               <div id="segmentList"></div>
             </div>
             <div class="english-editor hidden" id="englishEditor"></div>

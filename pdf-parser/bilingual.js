@@ -1,13 +1,48 @@
 const sampleText = `# 家用和类似用途制冷器具技术要求
 
+ICS 97.040.30
+CCS Y 61
+
+## 前言
+本文件按照 GB/T 1.1—2020《标准化工作导则 第1部分：标准化文件的结构和起草规则》的规定起草。
+
+本文件用于家用和类似用途制冷器具技术要求的预研、编制说明和标准草案同步输出。
+
 ## 1 范围
 本文件规定了家用和类似用途制冷器具的术语、性能要求、试验方法和检验规则。
 
-## 2 性能要求
+本文件适用于额定电压不超过 250 V 的家用电冰箱、冷藏冷冻箱和类似用途制冷器具。
+
+## 2 规范性引用文件
+下列文件中的内容通过文中的规范性引用而构成本文件必不可少的条款。
+
+GB/T 8059 家用和类似用途制冷器具
+IEC 62552 Household refrigerating appliances — Characteristics and test methods
+
+## 3 术语和定义
+蒸发器是使制冷剂吸收热量并产生制冷效应的换热部件。
+
+化霜是去除蒸发器表面霜层以恢复换热能力的过程。
+
+## 4 性能要求
 蒸发器应在额定工况下保持稳定换热能力，化霜过程不应影响冷藏室食品安全。
 
-## 3 隔热要求
-箱体隔热层应具备足够的隔热性能，并满足能效等级要求。`;
+制冷系统应在规定环境温度下稳定运行，压缩机、冷凝器和控制器不应出现异常噪声、过热或失效。
+
+## 5 隔热要求
+箱体隔热层应具备足够的隔热性能，并满足能效等级要求。
+
+门封结构应保持良好密封性能，正常使用过程中不应产生影响使用的凝露。
+
+## 6 试验方法
+试验前，器具应在规定环境条件下放置不少于 12 h。
+
+温度测量点应布置在冷藏室和冷冻室代表性位置，记录稳定运行期间的温度波动。
+
+## 7 标志、包装和说明书
+产品铭牌应至少标明额定电压、额定功率、制冷剂种类、气候类型和制造商信息。
+
+说明书应包含安装、使用、维护、化霜和安全警示等内容。`;
 
 const initialTerms = [
   ['蒸发器', 'evaporator'],
@@ -134,15 +169,34 @@ function demoTranslate(text) {
   let result = text
     .replace(/^#\s*/, '# ')
     .replace(/^##\s*/, '## ')
+    .replace(/前言/g, 'Foreword')
+    .replace(/本文件按照 GB\/T 1.1—2020《标准化工作导则 第1部分：标准化文件的结构和起草规则》的规定起草/g, 'This document has been drafted in accordance with GB/T 1.1—2020 Directives for standardization — Part 1: Rules for the structure and drafting of standardizing documents')
+    .replace(/本文件用于家用和类似用途制冷器具技术要求的预研、编制说明和标准草案同步输出/g, 'This document is used for synchronized output of preliminary research, drafting notes, and standard drafts for technical requirements of household and similar refrigerating appliances')
     .replace(/本文件规定了/g, 'This document specifies ')
+    .replace(/本文件适用于额定电压不超过 250 V 的家用电冰箱、冷藏冷冻箱和类似用途制冷器具/g, 'This document applies to household refrigerators, refrigerator-freezers, and similar refrigerating appliances with a rated voltage not exceeding 250 V')
+    .replace(/规范性引用文件/g, 'Normative references')
+    .replace(/下列文件中的内容通过文中的规范性引用而构成本文件必不可少的条款/g, 'The contents of the following documents constitute indispensable provisions of this document through normative references in the text')
+    .replace(/术语和定义/g, 'Terms and definitions')
+    .replace(/蒸发器是使制冷剂吸收热量并产生制冷效应的换热部件/g, 'An evaporator is a heat exchange component that enables the refrigerant to absorb heat and produce a cooling effect')
+    .replace(/化霜是去除蒸发器表面霜层以恢复换热能力的过程/g, 'Defrost is the process of removing frost from the evaporator surface to restore heat exchange capacity')
     .replace(/家用和类似用途制冷器具/g, 'household and similar refrigerating appliances')
     .replace(/术语、性能要求、试验方法和检验规则/g, 'terms, performance requirements, test methods, and inspection rules')
     .replace(/应在额定工况下保持稳定换热能力/g, 'shall maintain stable heat exchange capacity under rated operating conditions')
     .replace(/过程不应影响/g, 'process shall not affect')
     .replace(/食品安全/g, 'food safety')
+    .replace(/制冷系统应在规定环境温度下稳定运行/g, 'The refrigerating system shall operate stably at the specified ambient temperature')
+    .replace(/不应出现异常噪声、过热或失效/g, 'shall not show abnormal noise, overheating, or failure')
     .replace(/箱体隔热层/g, 'cabinet thermal insulation layer')
     .replace(/应具备足够的/g, 'shall have sufficient ')
     .replace(/性能，并满足/g, ' performance and meet ')
+    .replace(/门封结构应保持良好密封性能/g, 'The door gasket structure shall maintain good sealing performance')
+    .replace(/正常使用过程中不应产生影响使用的凝露/g, 'condensation affecting normal use shall not occur during normal operation')
+    .replace(/试验方法/g, 'Test methods')
+    .replace(/试验前，器具应在规定环境条件下放置不少于 12 h/g, 'Before testing, the appliance shall be placed under the specified ambient conditions for not less than 12 h')
+    .replace(/温度测量点应布置在冷藏室和冷冻室代表性位置，记录稳定运行期间的温度波动/g, 'Temperature measuring points shall be arranged at representative positions in the refrigerator compartment and freezer compartment, and temperature fluctuation during stable operation shall be recorded')
+    .replace(/标志、包装和说明书/g, 'Marking, packaging, and instructions')
+    .replace(/产品铭牌应至少标明额定电压、额定功率、制冷剂种类、气候类型和制造商信息/g, 'The product nameplate shall at least indicate the rated voltage, rated power, refrigerant type, climate class, and manufacturer information')
+    .replace(/说明书应包含安装、使用、维护、化霜和安全警示等内容/g, 'The instructions shall include installation, use, maintenance, defrost, and safety warnings')
     .replace(/要求/g, ' requirements')
     .replace(/范围/g, 'Scope')
     .replace(/性能/g, 'Performance')
@@ -195,7 +249,7 @@ function bindSegmentInputs() {
   });
 }
 
-function generateTranslation() {
+function generateTranslation(silent = false) {
   const title = elements.title.value.trim();
   const parts = splitSegments(elements.source.value);
   if (!title || !parts.length) return notify('请先填写文档标题和中文正文');
@@ -220,7 +274,7 @@ function generateTranslation() {
   view = 'parallel';
   document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('selected', button.dataset.view === view));
   renderTranslation();
-  notify('英文版本已生成，术语已按术语库优先替换');
+  if (!silent) notify('英文版本已生成，术语已按术语库优先替换');
 }
 
 function refreshEnglishFromChinese() {
@@ -302,4 +356,5 @@ elements.downloadEn.addEventListener('click', () => downloadFile('en'));
 elements.downloadParallel.addEventListener('click', () => downloadFile('parallel'));
 
 renderTerms();
+generateTranslation(true);
 lucide.createIcons();
