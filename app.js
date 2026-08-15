@@ -575,7 +575,7 @@ const moduleOneGenerationSteps = [
   { title: '第 4 章 技术要求', detail: '映射温度、能耗、噪声与保护指标' },
   { title: '第 5 章 试验方法', detail: '对应试验条件、步骤和判定方式' },
   { title: '第 6 章 检验规则', detail: '标记抽样、复测和待确认项' },
-  { title: '输出三类草案', detail: '生成标准草案、编制说明和预研报告' }
+  { title: '生成草案', detail: '生成可审阅的标准草案' }
 ];
 
 function renderModuleOneGenerationProgress(activeStep = 0, percent = 0, state = 'running') {
@@ -618,7 +618,7 @@ async function finishModuleOneGenerationProgress() {
   const wait = Math.max(0, 1600 - (Date.now() - moduleOneGenerationStartedAt));
   if (wait) await new Promise(resolve => window.setTimeout(resolve, wait));
   renderModuleOneGenerationProgress(moduleOneGenerationSteps.length, 100, 'complete');
-  document.querySelector('#moduleOneGenerationStatus').textContent = '三类草案已生成，正在进入草案审阅。';
+  document.querySelector('#moduleOneGenerationStatus').textContent = '草案已生成，正在进入草案审阅。';
   await new Promise(resolve => window.setTimeout(resolve, 450));
   moduleOneGenerationActive = false;
   document.querySelector('#moduleOneGenerationDialog').close();
@@ -680,7 +680,7 @@ async function generateModuleOneDrafts() {
     enterModuleOneReview();
     setFlowStage(2);
     document.querySelector('#clauseEditorWorkbench').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    notify(result.mode === 'llm' ? 'LLM 已生成三类草案' : '已生成三类演示草案');
+    notify(result.mode === 'llm' ? 'LLM 已生成草案' : '已生成演示草案');
   } catch (error) {
     failModuleOneGenerationProgress(error);
     notify(error.message);
