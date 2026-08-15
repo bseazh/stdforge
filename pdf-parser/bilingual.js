@@ -37,6 +37,7 @@ const elements = {
   segmentList: document.querySelector('#segmentList'),
   versionInfo: document.querySelector('#versionInfo'),
   outputTitle: document.querySelector('#outputTitle'),
+  refreshTranslation: document.querySelector('#refreshTranslation'),
   saveZh: document.querySelector('#saveZh'),
   saveEn: document.querySelector('#saveEn'),
   downloadZh: document.querySelector('#downloadZh'),
@@ -51,6 +52,7 @@ let terms = JSON.parse(localStorage.getItem('stdforge.bilingual.terms') || 'null
 let translation = null;
 let zhVersion = 0;
 let enVersion = 0;
+let englishStale = false;
 
 elements.source.value = sampleText;
 
@@ -63,6 +65,12 @@ function notify(message) {
 
 function persistTerms() {
   localStorage.setItem('stdforge.bilingual.terms', JSON.stringify(terms));
+}
+
+function markEnglishStale() {
+  if (!translation) return;
+  englishStale = true;
+  elements.versionInfo.textContent = `中文 v${zhVersion} · 英文 v${enVersion} · 英文待更新`;
 }
 
 function renderTerms() {
@@ -83,12 +91,14 @@ function renderTerms() {
       terms = terms.filter(item => item.zh && item.en);
       persistTerms();
       renderTerms();
+      markEnglishStale();
       notify('术语已保存');
     });
     row.querySelector('[data-action="delete"]').addEventListener('click', () => {
       terms = terms.filter(item => item.id !== row.dataset.id);
       persistTerms();
       renderTerms();
+      markEnglishStale();
       notify('术语已删除');
     });
   });
@@ -132,7 +142,7 @@ function renderTranslation() {
   elements.empty.classList.add('hidden');
   elements.parallelEditor.classList.toggle('hidden', view !== 'parallel');
   elements.englishEditor.classList.toggle('hidden', view !== 'english');
-  elements.versionInfo.textContent = `中文 v${zhVersion} · 英文 v${enVersion}`;
+  elements.versionInfo.textContent = `中文 v${zhVersion} · 英文 v${enVersion}${englishStale ? ' · 英文待更新' : ''}`;
   elements.segmentList.innerHTML = translation.segments.map(segment => `
     <article class="parallel-row" data-id="${segment.id}">
       <textarea data-lang="zh">${escapeHtml(segment.zh)}</textarea>
@@ -150,6 +160,7 @@ function bindSegmentInputs() {
   elements.segmentList.querySelectorAll('.parallel-row').forEach(row => {
     row.querySelector('[data-lang="zh"]').addEventListener('input', event => {
       translation.segments.find(segment => segment.id === row.dataset.id).zh = event.target.value;
+      markEnglishStale();
     });
     row.querySelector('[data-lang="en"]').addEventListener('input', event => {
       translation.segments.find(segment => segment.id === row.dataset.id).en = event.target.value;
@@ -173,10 +184,23 @@ function generateTranslation() {
   };
   zhVersion = 1;
   enVersion = 1;
+  englishStale = false;
   view = mode === 'english' ? 'english' : 'parallel';
   document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('selected', button.dataset.view === view));
   renderTranslation();
   notify('英文版本已生成，术语已按术语库优先替换');
+}
+
+function refreshEnglishFromChinese() {
+  if (!translation) return notify('请先生成英文版本');
+  translation.segments = translation.segments.map(segment => ({
+    ...segment,
+    en: demoTranslate(segment.zh)
+  }));
+  enVersion += 1;
+  englishStale = false;
+  renderTranslation();
+  notify('英文已按当前中文和术语库重新更新');
 }
 
 function downloadFile(kind) {
@@ -219,9 +243,11 @@ elements.addTerm.addEventListener('click', () => {
   elements.termEn.value = '';
   persistTerms();
   renderTerms();
+  markEnglishStale();
   notify('术语已加入术语库');
 });
 elements.generate.addEventListener('click', generateTranslation);
+elements.refreshTranslation.addEventListener('click', refreshEnglishFromChinese);
 elements.saveZh.addEventListener('click', () => { if (translation) { zhVersion += 1; renderTranslation(); notify('中文版本已单独保存'); } });
 elements.saveEn.addEventListener('click', () => { if (translation) { enVersion += 1; renderTranslation(); notify('英文版本已单独保存'); } });
 elements.downloadZh.addEventListener('click', () => downloadFile('zh'));
