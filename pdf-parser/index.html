@@ -27,6 +27,11 @@
         </div>
       </section>
 
+      <section class="demo-inputs-panel" id="demoInputsPanel">
+        <div class="section-heading"><div><p>演示输入库</p><h2>选择一份研发技术要求开始映射</h2></div><span class="section-note">内置 DOCX · 可预览 · 可下载</span></div>
+        <div class="demo-inputs-grid" id="demoInputsGrid"><div class="demo-loading">正在读取演示输入…</div></div>
+      </section>
+
       <section class="workspace">
         <div class="source-pane">
           <div class="pane-heading"><div><span>01</span><strong>原始文档</strong></div><span class="file-state" id="fileState">未选择</span></div>
@@ -76,7 +81,26 @@
         <div><i data-lucide="notebook-pen"></i><span><strong>同步到飞书在线文档</strong><small id="feishuMessage">解析结果将以追加方式写入</small></span></div>
         <div class="feishu-actions"><input id="feishuDocUrl" type="url" placeholder="粘贴飞书文档或知识库文档链接" aria-label="飞书文档链接" /><button class="button primary" id="syncFeishu"><i data-lucide="cloud-upload"></i>同步到飞书</button><a class="button secondary hidden" id="openFeishuDoc" target="_blank" rel="noopener"><i data-lucide="external-link"></i>在线协同编辑</a><button class="button secondary hidden" id="submitApproval"><i data-lucide="send"></i>提交飞书审查</button><a class="button primary hidden" id="approvalLink" target="_blank" rel="noopener"><i data-lucide="external-link"></i>打开审批单</a><button class="button secondary hidden" id="checkApproval"><i data-lucide="refresh-cw"></i>刷新审批结果</button></div>
       </section>
+
+      <section class="draft-panel" id="draftPanel">
+        <div class="section-heading"><div><p>03 · 模板映射与生成</p><h2>按参考标准结构生成三类草案</h2></div><span class="section-note" id="draftModeNote">等待选择研发输入</span></div>
+        <div class="draft-controls">
+          <div class="template-choice"><label for="templateFileInput">参考标准 PDF 模板</label><input id="templateFileInput" type="file" accept="application/pdf,.pdf" /><small id="templateState">未上传时使用 GB/T 1.1 常见章节结构；上传 PDF 后会先调用 MinerU 提取结构。</small></div>
+          <button class="button secondary" id="parseTemplateButton" disabled><i data-lucide="file-scan"></i>解析为模板</button>
+          <button class="button primary" id="generateDraftButton" disabled><i data-lucide="wand-sparkles"></i>生成三类草案</button>
+        </div>
+        <div class="draft-progress hidden" id="draftProgress"><span class="spinner"></span><span id="draftProgressText">正在生成标准草案、编制说明和预研报告…</span></div>
+        <div class="draft-result hidden" id="draftResult">
+          <div class="draft-tabs" role="tablist"><button class="active" data-draft-tab="standardDraft">标准草案</button><button data-draft-tab="compilationNotes">编制说明</button><button data-draft-tab="preResearchReport">预研报告</button><button class="draft-download" id="downloadDraftButton"><i data-lucide="download"></i>下载当前草案</button></div>
+          <article class="draft-markdown" id="draftMarkdown"></article>
+        </div>
+      </section>
     </main>
+
+    <div class="preview-modal hidden" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+      <div class="preview-backdrop" data-close-preview></div>
+      <section class="preview-dialog"><header><div><span class="eyebrow">演示输入预览</span><h2 id="previewTitle">文档预览</h2></div><button class="icon-button" id="closePreviewButton" aria-label="关闭预览" title="关闭预览"><i data-lucide="x"></i></button></header><div class="preview-body" id="previewBody"></div><footer><button class="button secondary" data-close-preview>关闭</button><a class="button primary" id="previewDownload" download><i data-lucide="download"></i>下载 DOCX</a></footer></section>
+    </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"><i data-lucide="info"></i><span></span></div>
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>

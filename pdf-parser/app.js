@@ -9,13 +9,21 @@ const elements = {
   downloadBar: document.querySelector('#downloadBar'), downloadOriginal: document.querySelector('#downloadOriginal'), downloadMarkdown: document.querySelector('#downloadMarkdown'),
   downloadArchive: document.querySelector('#downloadArchive'), resultMeta: document.querySelector('#resultMeta'), serverState: document.querySelector('#serverState'), toast: document.querySelector('#toast'),
   feishuBar: document.querySelector('#feishuBar'), feishuDocUrl: document.querySelector('#feishuDocUrl'), syncFeishu: document.querySelector('#syncFeishu'), openFeishuDoc: document.querySelector('#openFeishuDoc'), feishuMessage: document.querySelector('#feishuMessage'), submitApproval: document.querySelector('#submitApproval'), approvalLink: document.querySelector('#approvalLink'), checkApproval: document.querySelector('#checkApproval'),
-  kbModule: document.querySelector('#kbModule'), fileBadge: document.querySelector('#fileBadge'), previewMessage: document.querySelector('#previewMessage'), kbResult: document.querySelector('#kbResult')
+  kbModule: document.querySelector('#kbModule'), fileBadge: document.querySelector('#fileBadge'), previewMessage: document.querySelector('#previewMessage'), kbResult: document.querySelector('#kbResult'),
+  demoInputsGrid: document.querySelector('#demoInputsGrid'), previewModal: document.querySelector('#previewModal'), previewTitle: document.querySelector('#previewTitle'), previewBody: document.querySelector('#previewBody'), previewDownload: document.querySelector('#previewDownload'), closePreviewButton: document.querySelector('#closePreviewButton'),
+  draftModeNote: document.querySelector('#draftModeNote'), templateFileInput: document.querySelector('#templateFileInput'), templateState: document.querySelector('#templateState'), parseTemplateButton: document.querySelector('#parseTemplateButton'), generateDraftButton: document.querySelector('#generateDraftButton'), draftProgress: document.querySelector('#draftProgress'), draftProgressText: document.querySelector('#draftProgressText'), draftResult: document.querySelector('#draftResult'), draftMarkdown: document.querySelector('#draftMarkdown'), downloadDraftButton: document.querySelector('#downloadDraftButton')
 };
 
 let selectedFile;
 let previewUrl;
 let currentJob;
 let pollTimer;
+let currentSourceText = '';
+let currentSourceName = '';
+let currentTemplateText = '';
+let currentTemplateName = 'GB/T 1.1 常见章节结构（演示）';
+let generatedDrafts = {};
+let activeDraftTab = 'standardDraft';
 
 const lastFeishuDocumentKey = 'stdforge.lastFeishuDocumentUrl';
 
@@ -106,6 +114,11 @@ function reset() {
   elements.parseButton.disabled = true;
   elements.resetButton.disabled = true;
   elements.parseButton.innerHTML = '<i data-lucide="scan-text"></i>开始解析';
+  currentSourceText = '';
+  currentSourceName = '';
+  generatedDrafts = {};
+  elements.draftResult.classList.add('hidden');
+  updateDraftAvailability();
   lucide.createIcons();
 }
 
@@ -138,20 +151,174 @@ function escapeHtml(value) {
   return value.replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' })[character]);
 }
 
+function markdownToHtml(markdown) {
+  const lines = String(markdown || '').split(/\r?\n/);
+  const html = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const next = lines[index + 1] || '';
+    if (/^\|/.test(line) && /^\|?\s*:?-{3,}/.test(next)) {
+      const headers = line.split('|').slice(1, -1).map(value => `<th>${escapeHtml(value.trim())}</th>`).join('');
+      html.push(`<table><thead><tr>${headers}</tr></thead><tbody>`);
+      index += 2;
+      while (index < lines.length && /^\|/.test(lines[index])) {
+        const cells = lines[index].split('|').slice(1, -1).map(value => `<td>${escapeHtml(value.trim())}</td>`).join('');
+        html.push(`<tr>${cells}</tr>`);
+        index += 1;
+      }
+      html.push('</tbody></table>');
+      index -= 1;
+      continue;
+    }
+    const escaped = escapeHtml(line);
+    if (/^### /.test(line)) html.push(`<h3>${escaped.slice(4)}</h3>`);
+    else if (/^## /.test(line)) html.push(`<h2>${escaped.slice(3)}</h2>`);
+    else if (/^# /.test(line)) html.push(`<h1>${escaped.slice(2)}</h1>`);
+    else if (/^\s*[-*] /.test(line)) html.push(`<p>${escaped.replace(/^\s*[-*] /, '• ')}</p>`);
+    else if (/^\s*\d+\. /.test(line)) html.push(`<p>${escaped}</p>`);
+    else if (escaped.trim()) html.push(`<p>${escaped}</p>`);
+  }
+  return html.join('');
+}
+
 function renderMarkdown(markdown) {
-  const html = escapeHtml(markdown)
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/^!\[[^\]]*\]\([^\)]+\)\s*$/gm, '<p>[解析图片见完整结果包]</p>')
-    .replace(/^(?!<h[1-3]>)(.+)$/gm, '<p>$1</p>')
-    .replace(/<p>\s*<\/p>/g, '');
-  elements.renderedResult.innerHTML = html;
+  elements.renderedResult.innerHTML = markdownToHtml(markdown);
   elements.sourceResult.textContent = markdown;
+}
+
+function updateDraftAvailability() {
+  elements.generateDraftButton.disabled = !currentSourceText;
+  elements.draftModeNote.textContent = currentSourceText ? `${currentSourceName} · 模板：${currentTemplateName}` : '等待选择研发输入';
+}
+
+function openPreview(item, markdown) {
+  elements.previewTitle.textContent = item.title;
+  elements.previewBody.innerHTML = markdownToHtml(markdown);
+  elements.previewDownload.href = item.downloadUrl;
+  elements.previewDownload.download = item.fileName;
+  elements.previewModal.classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closePreview() {
+  elements.previewModal.classList.add('hidden');
+}
+
+async function loadDemoInputs() {
+  try {
+    const response = await fetch('/api/demo-inputs');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '演示输入加载失败');
+    currentTemplateText = result.template?.text || '';
+    currentTemplateName = result.template?.name || currentTemplateName;
+    elements.demoInputsGrid.innerHTML = result.inputs.map(item => `
+      <article class="demo-card" data-demo-id="${escapeHtml(item.id)}">
+        <span class="demo-type">${escapeHtml(item.industry)}</span>
+        <h3>${escapeHtml(item.title)}</h3>
+        <p>${escapeHtml(item.summary)}</p>
+        <div class="demo-card-actions"><button class="button secondary demo-preview" type="button">预览</button><button class="button primary demo-load" type="button">载入演示</button></div>
+      </article>`).join('');
+    elements.demoInputsGrid.querySelectorAll('.demo-card').forEach(card => {
+      const item = result.inputs.find(candidate => candidate.id === card.dataset.demoId);
+      card.querySelector('.demo-preview').addEventListener('click', async () => {
+        const preview = await fetch(item.previewUrl).then(response => response.json());
+        if (preview.markdown) openPreview(item, preview.markdown);
+      });
+      card.querySelector('.demo-load').addEventListener('click', async () => {
+        const preview = await fetch(item.previewUrl).then(response => response.json());
+        if (!preview.markdown) return notify('演示输入读取失败');
+        currentSourceText = preview.markdown;
+        currentSourceName = item.fileName;
+        const fileResponse = await fetch(item.downloadUrl);
+        const blob = await fileResponse.blob();
+        selectFile(new File([blob], item.fileName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+        elements.templateState.textContent = `已选择默认模板：${currentTemplateName}`;
+        updateDraftAvailability();
+        notify(`已载入：${item.title}`);
+      });
+    });
+  } catch (error) {
+    elements.demoInputsGrid.innerHTML = `<div class="demo-loading">演示输入加载失败：${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function pollTemplateJob(jobId) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    await new Promise(resolve => window.setTimeout(resolve, 1500));
+    const response = await fetch(`/api/jobs/${jobId}`);
+    const job = await response.json();
+    if (job.state === 'done') return job.markdown || '';
+    if (job.state === 'failed') throw new Error(job.error || '参考 PDF 解析失败');
+    elements.templateState.textContent = job.message || '正在解析参考 PDF…';
+  }
+  throw new Error('参考 PDF 解析超时');
+}
+
+async function parseTemplate() {
+  const file = elements.templateFileInput.files?.[0];
+  if (!file) return;
+  elements.parseTemplateButton.disabled = true;
+  elements.templateState.textContent = '正在提交 MinerU 解析…';
+  try {
+    const response = await fetch(`/api/parse?module=standards&filename=${encodeURIComponent(file.name)}`, { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: file });
+    const job = await response.json();
+    if (!response.ok) throw new Error(job.error || '参考 PDF 解析失败');
+    currentTemplateText = await pollTemplateJob(job.id);
+    currentTemplateName = file.name;
+    elements.templateState.textContent = `模板已提取：${file.name}，生成时将按其章节和字段组织输出`;
+    updateDraftAvailability();
+    notify('参考 PDF 已解析为模板');
+  } catch (error) {
+    elements.templateState.textContent = error.message;
+  } finally {
+    elements.parseTemplateButton.disabled = false;
+  }
+}
+
+function renderActiveDraft() {
+  elements.draftMarkdown.innerHTML = markdownToHtml(generatedDrafts[activeDraftTab] || '');
+  document.querySelectorAll('[data-draft-tab]').forEach(tab => tab.classList.toggle('active', tab.dataset.draftTab === activeDraftTab));
+}
+
+async function generateDraft() {
+  if (!currentSourceText) return notify('请先从演示输入库载入一份研发技术要求');
+  elements.generateDraftButton.disabled = true;
+  elements.draftProgress.classList.remove('hidden');
+  try {
+    const response = await fetch('/api/drafts/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourceName: currentSourceName, sourceText: currentSourceText, templateName: currentTemplateName, templateText: currentTemplateText }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '草案生成失败');
+    generatedDrafts = { standardDraft: result.standardDraft, compilationNotes: result.compilationNotes, preResearchReport: result.preResearchReport };
+    activeDraftTab = 'standardDraft';
+    renderActiveDraft();
+    elements.draftResult.classList.remove('hidden');
+    elements.draftProgressText.textContent = result.mode === 'llm' ? `LLM 已生成 · ${result.model}` : '演示映射已生成 · 当前未使用 LLM 或 LLM 暂不可用';
+    notify(result.mode === 'llm' ? '三类草案生成完成' : '三类演示草案已生成');
+  } catch (error) {
+    elements.draftProgressText.textContent = error.message;
+  } finally {
+    elements.draftProgress.classList.add('hidden');
+    updateDraftAvailability();
+  }
+}
+
+function downloadCurrentDraft() {
+  const content = generatedDrafts[activeDraftTab];
+  if (!content) return;
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${activeDraftTab}-${currentSourceName.replace(/\.[^.]+$/, '')}.md`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function showDone(job) {
   renderMarkdown(job.markdown || '');
+  currentSourceText = job.markdown || '';
+  currentSourceName = job.fileName || selectedFile?.name || 'source.pdf';
+  updateDraftAvailability();
   elements.resultEmpty.classList.add('hidden');
   elements.errorPanel.classList.add('hidden');
   elements.renderedResult.classList.remove('hidden');
@@ -177,6 +344,9 @@ function showDone(job) {
 
 function showImportedDocument(result) {
   const document = result.document;
+  currentSourceText = result.text || '';
+  currentSourceName = document.fileName || selectedFile?.name || 'source.docx';
+  updateDraftAvailability();
   elements.progressPanel.classList.add('hidden');
   elements.resultEmpty.classList.add('hidden');
   elements.errorPanel.classList.add('hidden');
@@ -343,6 +513,20 @@ document.querySelectorAll('.view-tabs button').forEach(button => button.addEvent
   elements.renderedResult.classList.toggle('hidden', sourceMode);
   elements.sourceResult.classList.toggle('hidden', !sourceMode);
 }));
+document.querySelectorAll('[data-close-preview]').forEach(button => button.addEventListener('click', closePreview));
+elements.closePreviewButton.addEventListener('click', closePreview);
+elements.templateFileInput.addEventListener('change', () => {
+  const file = elements.templateFileInput.files?.[0];
+  elements.parseTemplateButton.disabled = !file;
+  if (file) elements.templateState.textContent = `已选择模板：${file.name}，点击“解析为模板”`;
+});
+elements.parseTemplateButton.addEventListener('click', parseTemplate);
+elements.generateDraftButton.addEventListener('click', generateDraft);
+elements.downloadDraftButton.addEventListener('click', downloadCurrentDraft);
+document.querySelectorAll('[data-draft-tab]').forEach(tab => tab.addEventListener('click', () => {
+  activeDraftTab = tab.dataset.draftTab;
+  if (activeDraftTab) renderActiveDraft();
+}));
 
 fetch('/api/health').then(response => response.json()).then(health => {
   elements.serverState.className = `server-state ${health.ok ? 'ready' : 'error'}`;
@@ -352,6 +536,8 @@ fetch('/api/health').then(response => response.json()).then(health => {
   elements.serverState.className = 'server-state error';
   elements.serverState.querySelector('em').textContent = '解析服务不可用';
 });
+
+loadDemoInputs();
 
 const lastFeishuDocumentUrl = localStorage.getItem(lastFeishuDocumentKey);
 if (lastFeishuDocumentUrl) elements.feishuDocUrl.value = lastFeishuDocumentUrl;

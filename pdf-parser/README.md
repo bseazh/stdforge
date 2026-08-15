@@ -34,6 +34,12 @@ PORT=4174 MINERU_TOKEN='<your-token>' node pdf-parser/server.mjs
 - MinerU 生成的 Markdown；
 - 包含内容列表、版面 JSON、模型 JSON、图片和 Markdown 的完整 ZIP。
 
+## AI 标准草案演示
+
+页面内置 `demo-inputs/` 下的四份研发技术要求 DOCX，支持预览 Markdown、下载原始 DOCX 和载入工作区。载入后可以选择参考标准 PDF：PDF 会先通过 MinerU 提取章节结构，再作为模板上下文提交给 `POST /api/drafts/generate`。未上传模板时使用 GB/T 1.1 常见章节结构演示模板。
+
+生成接口返回三份可编辑 Markdown：标准草案、编制说明、预研报告。配置 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL` 时调用 OpenAI 兼容接口；模型不可用时自动降级为保留“待确认”标记的确定性演示映射，不会伪造正式标准限值。
+
 MinerU 返回 `done` 后，结果 ZIP 会从其 CDN 下载。网络中断或 CDN 短暂重置时，服务会自动重试 3 次（1 秒、2 秒退避）；三次都失败会返回“MinerU 已完成解析，但下载结果失败，可重试”，而不会误报为 PDF 解析失败。
 
 令牌只从 `MINERU_TOKEN` 环境变量读取。上传文件和解析结果保存在 `pdf-parser/.runtime/`，该目录被 Git 忽略。知识库文本和目录索引保存在 `KDB/`，服务重启后仍可用于检索。

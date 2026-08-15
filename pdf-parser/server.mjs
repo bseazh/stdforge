@@ -10,6 +10,9 @@ import { parsePdf, ResultDownloadError } from './mineru-client.mjs';
 import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
 import { createApprovalInstance, getApprovalInstance } from './feishu-approval-client.mjs';
 import { KnowledgeBase, knowledgeModules } from './kb-store.mjs';
+import { crawlMiitPolicies, hydrateMiitPolicies, hydrateMiitPolicyDetails } from '../module3/source/server/miit-source.mjs';
+import { analyzePolicies } from '../module3/source/server/policy-classifier.mjs';
+import { interpretPolicy } from '../module3/source/server/policy-interpreter.mjs';
 
 const root = resolve(import.meta.dirname);
 const runtimeRoot = join(root, '.runtime');
@@ -18,6 +21,62 @@ const host = process.env.HOST || '127.0.0.1';
 const maxFileSize = 30 * 1024 * 1024;
 const jobs = new Map();
 const kb = new KnowledgeBase(join(root, '../KDB'));
+
+const demoInputCatalog = [
+  {
+    id: 'vehicle-refrigerator',
+    title: '车载冰箱温控与性能技术要求',
+    industry: '家电 / 制冷',
+    fileName: 'vehicle-refrigerator-tech-requirements-demo.docx',
+    markdownFile: 'vehicle-refrigerator-tech-requirements-demo.md',
+    summary: '温控、能耗、噪声、低压保护与验证方案'
+  },
+  {
+    id: 'evaporator-frost-capacity',
+    title: '家用电冰箱蒸发器容霜性能技术要求',
+    industry: '家电 / 制冷',
+    fileName: 'evaporator-frost-capacity-tech-requirements-demo.docx',
+    markdownFile: 'evaporator-frost-capacity-tech-requirements-demo.md',
+    summary: '容霜质量、送风衰减、化霜和排水性能'
+  },
+  {
+    id: 'automotive-cabin-air-filter',
+    title: '汽车空调滤清器性能技术要求',
+    industry: '汽车零部件',
+    fileName: 'automotive-cabin-air-filter-tech-requirements-demo.docx',
+    markdownFile: 'automotive-cabin-air-filter-tech-requirements-demo.md',
+    summary: '阻力、过滤效率、容尘、密封与振动验证'
+  },
+  {
+    id: 'central-air-conditioning-cleaning',
+    title: '公共场所集中空调通风系统清洗消毒技术要求',
+    industry: '建筑运维 / 公共卫生',
+    fileName: 'central-air-conditioning-cleaning-disinfection-tech-requirements-demo.docx',
+    markdownFile: 'central-air-conditioning-cleaning-disinfection-tech-requirements-demo.md',
+    summary: '现场勘查、清洗消毒、效果评价和记录归档'
+  }
+];
+
+const standardTemplateOutline = `# 参考标准模板（演示）
+
+## 常见章节结构
+1. 封面
+2. 前言
+3. 范围
+4. 规范性引用文件
+5. 术语和定义
+6. 分类与型号
+7. 技术要求
+8. 试验方法
+9. 检验规则
+10. 标志、包装、运输和贮存
+11. 附录
+
+## 映射约束
+- 每条技术指标必须包含对象、条件、限值、单位和判定方式。
+- 每项指标应能定位到至少一个试验步骤和数据记录。
+- 未确认的标准编号、限值、起草单位、法规和引用关系不得由模型补造。
+- 输入中标记为“演示目标，待确认”的数值必须原样保留。`;
 
 await mkdir(runtimeRoot, { recursive: true });
 for (const envFile of ['.env.local', '.env.smtp.local']) {
@@ -34,6 +93,7 @@ const token = process.env.MINERU_TOKEN;
 const llmBaseUrl = (process.env.LLM_BASE_URL || '').replace(/\/$/, '');
 const llmApiKey = process.env.LLM_API_KEY;
 const llmModel = process.env.LLM_MODEL;
+const policyModelConfig = { baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel };
 const feishuAppId = process.env.FEISHU_APP_ID;
 const feishuAppSecret = process.env.FEISHU_APP_SECRET;
 const feishuApprovalCode = process.env.FEISHU_APPROVAL_CODE;
@@ -425,12 +485,14 @@ async function importKnowledgeFile({ module, fileName, body }) {
   const stagingPath = join(runtimeRoot, `${importId}-${fileName}`);
   try {
     await writeFile(stagingPath, body);
-    return await kb.importFile({
+    const indexed = await kb.importFile({
       module,
       filePath: stagingPath,
       fileName,
       source: { type: 'upload', title: fileName.replace(/\.[^.]+$/, ''), fileHash: createHash('sha256').update(body).digest('hex') }
     });
+    const text = await readFile(resolve(kb.root, indexed.document.textPath), 'utf8');
+    return { ...indexed, text };
   } finally {
     await unlink(stagingPath).catch(() => {});
   }
@@ -445,7 +507,99 @@ function sendDownload(response, path, downloadName, contentType) {
   createReadStream(path).pipe(response);
 }
 
+function getDemoInput(id) {
+  return demoInputCatalog.find(item => item.id === id);
+}
+
+function fallbackDraftDocuments({ sourceName, sourceText, templateName }) {
+  const sourceTitle = sourceName.replace(/\.(docx|pdf|md|markdown|txt)$/i, '');
+  const excerpt = sourceText.trim().slice(0, 5200);
+  const templateLabel = templateName || 'GB/T 1.1 常见章节结构（演示）';
+  return {
+    standardDraft: `# ${sourceTitle}（标准草案演示稿）\n\n> 模板：${templateLabel}\n> 状态：演示草案，待标准化人员审查\n\n## 前言\n本文件根据研发技术要求整理生成。标准编号、归口单位、起草单位、发布日期及规范性引用关系待确认。\n\n## 1 范围\n本文件规定相关产品或服务的功能、性能、试验方法和验收要求。适用范围以输入材料为准，正式发布前需核验产品边界。\n\n## 2 规范性引用文件\n输入材料提及的参考文件仅作为编制线索，现行有效性和适用条款待人工确认。\n\n## 3 术语和定义\n术语应以产品对象、测量对象和判定规则为边界整理；未在输入中定义的术语不由模型擅自扩展。\n\n## 4 技术要求\n${sourceText.match(/## 3[\\s\\S]*?(?=## 4|$)/)?.[0] || '根据输入材料提取功能、安全和性能指标。'}\n\n## 5 试验方法\n试验方法应逐项对应技术指标，明确样品、环境、仪器、测点、步骤、计算和结果判定。输入材料中尚未确认的条件保留为“待确认”。\n\n## 6 检验规则\n样品数量、抽样、复测和合格判定按输入材料整理，正式批量检验规则待质量部门确认。\n\n## 7 标志、包装、运输和贮存\n根据产品交付要求补充铭牌、警示、包装、运输和贮存内容；输入未提供的字段标记为待确认。\n\n### 附录 A（资料性）试验记录表\n建议字段：样品编号、仪器编号、环境条件、原始数据、计算结果、异常和结论。\n\n### 来源输入摘录\n${excerpt}`,
+    compilationNotes: `# ${sourceTitle} 编制说明（演示稿）\n\n## 1 编制目的和意义\n将研发技术要求转换为可评审、可验证、可追溯的标准条款，减少邮件和表格流转中的信息损失。\n\n## 2 编制依据\n- 输入研发技术要求：${sourceName}\n- 参考模板：${templateLabel}\n- 参考文件、法规和指标有效性：待人工确认\n\n## 3 主要技术内容\n围绕范围、术语、技术要求、试验方法和检验规则建立条款结构；每个指标保留来源和待确认状态。\n\n## 4 与现行标准关系\n本演示仅依据输入材料和模板结构建立映射，未宣称替代、修改或等同任何现行标准。\n\n## 5 待确认事项\n请研发、质量、法规和标准化人员确认数值阈值、试验复现条件、引用文件及发布属性。`,
+    preResearchReport: `# ${sourceTitle} 预研报告（演示稿）\n\n## 1 立项必要性\n输入材料包含明确的产品或服务场景及性能问题，可作为建立统一技术要求的预研起点。\n\n## 2 国内外现状\n当前仅基于用户提供的输入和参考模板进行结构化演示，外部标准检索和对比需在正式预研阶段补充。\n\n## 3 技术路线\n研发输入解析 → 字段缺口检查 → 模板条款映射 → 试验验证 → 专家评审 → 版本发布。\n\n## 4 关键风险\n演示指标、法规适用性、样品抽样、设备精度和判定规则均需人工确认，模型不得替代试验或合规审查。\n\n## 5 预期效益\n形成可编辑、可追溯、可同步协同的标准草案及配套编制材料。`
+  };
+}
+
+function parseJsonObject(content) {
+  const candidate = String(content || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try {
+    const value = JSON.parse(candidate);
+    if (value && typeof value.standardDraft === 'string' && typeof value.compilationNotes === 'string' && typeof value.preResearchReport === 'string') return value;
+  } catch { /* fall through to deterministic demo output */ }
+  return null;
+}
+
+async function generateDraftDocuments({ sourceName, sourceText, templateName, templateText }) {
+  const fallback = fallbackDraftDocuments({ sourceName, sourceText, templateName });
+  if (!llmBaseUrl || !llmApiKey || !llmModel) return { ...fallback, mode: 'fallback', model: null };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+  try {
+    const response = await fetch(`${llmBaseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${llmApiKey}` },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: llmModel,
+        temperature: 0.15,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: '你是标准化工程师。请将研发技术要求映射为标准草案、编制说明、预研报告。只能改写和重组输入事实，不能创造标准编号、法规、起草单位或指标。所有“演示目标，待确认”必须保留。按常见 GB/T 1.1 章节组织标准草案。只返回 JSON：{"standardDraft":"Markdown","compilationNotes":"Markdown","preResearchReport":"Markdown"}。'
+          },
+          {
+            role: 'user',
+            content: `研发输入文件：${sourceName}\n参考模板：${templateName || 'GB/T 1.1 常见章节结构'}\n\n模板结构：\n${(templateText || standardTemplateOutline).slice(0, 16_000)}\n\n研发技术要求：\n${sourceText.slice(0, 28_000)}`
+          }
+        ]
+      })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error?.message || `LLM HTTP ${response.status}`);
+    const result = parseJsonObject(body.choices?.[0]?.message?.content);
+    if (!result) throw new Error('LLM 未返回完整三类文档');
+    return { ...result, mode: 'llm', model: llmModel };
+  } catch (error) {
+    console.error('Draft generation fallback:', error.message);
+    return { ...fallback, mode: 'fallback', model: null, warning: `LLM 暂不可用，已使用演示映射：${error.message}` };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function handleApi(request, response, url) {
+  if (request.method === 'POST' && url.pathname === '/api/crawl/miit') {
+    try {
+      const input = await readJsonRequest(request);
+      const result = await crawlMiitPolicies(input);
+      return json(response, 200, result);
+    } catch (error) {
+      return json(response, 502, { error: error.message || '工信部政策采集失败' });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/classify/policies') {
+    try {
+      const input = await readJsonRequest(request);
+      const policies = await hydrateMiitPolicies(input.policies);
+      const result = await analyzePolicies(policies, { config: policyModelConfig });
+      return json(response, 200, result);
+    } catch (error) {
+      return json(response, 502, { error: error.message || '政策分类失败' });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/interpret/policy') {
+    try {
+      const input = await readJsonRequest(request);
+      const policy = await hydrateMiitPolicyDetails(input.policy);
+      const result = await interpretPolicy({ ...input, policy }, { config: policyModelConfig });
+      return json(response, 200, result);
+    } catch (error) {
+      return json(response, 502, { error: error.message || '政策解读失败' });
+    }
+  }
   if (request.method === 'GET' && url.pathname === '/api/health') {
     return json(response, 200, {
       ok: true,
@@ -457,6 +611,45 @@ async function handleApi(request, response, url) {
       smtpConfigured,
       smtpTestManagementConfigured: Boolean(notificationTestAccessToken)
     });
+  }
+  if (request.method === 'GET' && url.pathname === '/api/demo-inputs') {
+    return json(response, 200, {
+      inputs: demoInputCatalog.map(item => ({
+        ...item,
+        downloadUrl: `/api/demo-inputs/${item.id}/download`,
+        previewUrl: `/api/demo-inputs/${item.id}/preview`
+      })),
+      template: { name: 'GB/T 1.1 常见章节结构（演示）', text: standardTemplateOutline }
+    });
+  }
+  const demoPreviewMatch = url.pathname.match(/^\/api\/demo-inputs\/([a-z0-9-]+)\/(preview|download)$/);
+  if (demoPreviewMatch) {
+    const item = getDemoInput(demoPreviewMatch[1]);
+    if (!item) return json(response, 404, { error: '演示输入不存在' });
+    const markdownPath = join(root, '../demo-inputs', item.markdownFile);
+    if (demoPreviewMatch[2] === 'preview') {
+      try {
+        return json(response, 200, { id: item.id, title: item.title, markdown: await readFile(markdownPath, 'utf8') });
+      } catch { return json(response, 404, { error: '演示输入预览文件不存在' }); }
+    }
+    const docxPath = join(root, '../demo-inputs', item.fileName);
+    try { await stat(docxPath); } catch { return json(response, 404, { error: '演示输入文件不存在' }); }
+    return sendDownload(response, docxPath, item.fileName, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  }
+  if (request.method === 'POST' && url.pathname === '/api/drafts/generate') {
+    try {
+      const payload = await readJsonRequest(request);
+      if (!payload.sourceName || !payload.sourceText) throw new Error('缺少研发输入文档内容');
+      const result = await generateDraftDocuments({
+        sourceName: String(payload.sourceName).slice(0, 240),
+        sourceText: String(payload.sourceText).slice(0, 36_000),
+        templateName: String(payload.templateName || '').slice(0, 240),
+        templateText: String(payload.templateText || '').slice(0, 18_000)
+      });
+      return json(response, 200, { ok: true, ...result, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      return json(response, 400, { error: error.message });
+    }
   }
   if (request.method === 'GET' && url.pathname === '/api/kb') {
     return json(response, 200, { ok: true, modules: knowledgeModules, stats: kb.stats() });
@@ -475,7 +668,7 @@ async function handleApi(request, response, url) {
       const fileName = safeDocumentName(url.searchParams.get('filename'));
       const body = await readRequestBody(request);
       const indexed = await importKnowledgeFile({ module, fileName, body });
-      return json(response, indexed.reused ? 200 : 201, { ok: true, reused: indexed.reused, document: publicDocument(indexed.document), stats: kb.stats() });
+      return json(response, indexed.reused ? 200 : 201, { ok: true, reused: indexed.reused, document: publicDocument(indexed.document), text: indexed.text, stats: kb.stats() });
     } catch (error) {
       return json(response, 400, { error: error.message });
     }
@@ -490,7 +683,7 @@ async function handleApi(request, response, url) {
         return json(response, 202, { ok: true, kind: 'pdf-job', job: publicJob(job) });
       }
       const indexed = await importKnowledgeFile({ module, fileName, body });
-      return json(response, indexed.reused ? 200 : 201, { ok: true, kind: 'document', reused: indexed.reused, document: publicDocument(indexed.document), stats: kb.stats() });
+      return json(response, indexed.reused ? 200 : 201, { ok: true, kind: 'document', reused: indexed.reused, document: publicDocument(indexed.document), text: indexed.text, stats: kb.stats() });
     } catch (error) {
       const isPdfConfigError = error.message === '服务端未配置 MINERU_TOKEN';
       return json(response, isPdfConfigError ? 503 : 400, { error: error.message });

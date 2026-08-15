@@ -1,0 +1,65 @@
+{
+  "templateId": "household-refrigeration-performance-v1",
+  "name": "家电/制冷产品性能与试验方法模板",
+  "version": "1.0.0-demo",
+  "status": "demo",
+  "usage": "黑客松演示模板。章节结构参考 GB/T 1.1 的常见编写习惯，正式发布前必须由标准化工程师核验适用性、引用文件和规范性用语。",
+  "supportedIndustries": ["家电", "制冷", "车载制冷"],
+  "inputSchema": {
+    "required": [
+      "project.name",
+      "product.name",
+      "scope.inclusions",
+      "performanceTargets",
+      "verification.commonConditions",
+      "references"
+    ],
+    "recommended": [
+      "terms",
+      "productConfiguration",
+      "functionalRequirements",
+      "safetyRequirements",
+      "reliabilityRequirements",
+      "acceptanceRules",
+      "openQuestions"
+    ]
+  },
+  "documents": {
+    "standardDraft": {
+      "titlePattern": "{product.name} 技术要求和试验方法",
+      "sections": [
+        {"id": "cover", "title": "封面", "source": ["project", "product"]},
+        {"id": "foreword", "title": "前言", "source": ["project", "references"], "aiInstruction": "仅生成编写说明，不虚构起草单位、发布日期或替代关系。"},
+        {"id": "scope", "title": "范围", "source": ["scope.inclusions", "scope.exclusions"]},
+        {"id": "normativeReferences", "title": "规范性引用文件", "source": ["references"], "aiInstruction": "仅列出用户明确给出或经人工确认的有效文件；未知时写待确认。"},
+        {"id": "terms", "title": "术语和定义", "source": ["terms"]},
+        {"id": "classification", "title": "分类与型号", "source": ["productConfiguration", "project.models"]},
+        {"id": "technicalRequirements", "title": "技术要求", "source": ["functionalRequirements", "performanceTargets", "safetyRequirements", "reliabilityRequirements"]},
+        {"id": "testMethods", "title": "试验方法", "source": ["verification.commonConditions", "verification.methods", "verification.instruments", "verification.samples"]},
+        {"id": "inspectionRules", "title": "检验规则", "source": ["acceptanceRules", "verification.samples"]},
+        {"id": "markingPackaging", "title": "标志、包装、运输和贮存", "source": ["deliveryRequirements"]},
+        {"id": "annex", "title": "附录", "source": ["calculationFormulas", "recordTemplates"]}
+      ]
+    },
+    "compilationNotes": {
+      "titlePattern": "《{product.name} 技术要求和试验方法》编制说明",
+      "sections": ["编制工作简况", "编制目的和意义", "编制原则和主要依据", "主要技术内容说明", "与现行相关标准的关系", "重大分歧意见处理经过", "实施建议", "其他说明"]
+    },
+    "preResearchReport": {
+      "titlePattern": "{project.name} 预研报告",
+      "sections": ["立项必要性", "国内外现状", "用户与应用场景", "技术路线", "关键指标与验证方案", "风险与合规关注点", "预期效益", "后续计划"]
+    }
+  },
+  "mappingRules": [
+    {"source": "performanceTargets[]", "target": "standardDraft.technicalRequirements", "rule": "每项指标输出对象、条件、限值、单位、判定方式；缺任一字段则标注待确认。"},
+    {"source": "verification.methods[]", "target": "standardDraft.testMethods", "rule": "每个指标至少对应一个试验步骤、测试条件、仪器要求、数据记录和结果判定。"},
+    {"source": "openQuestions[]", "target": "compilationNotes.其他说明", "rule": "不得由模型补造事实；保留为待确认事项。"},
+    {"source": "references[]", "target": "standardDraft.normativeReferences", "rule": "区分参考资料和规范性引用文件，文件现行有效性需人工确认。"}
+  ],
+  "generationGuardrails": [
+    "模型不得编造标准编号、起草单位、法律法规或检验限值。",
+    "演示目标、研发假设和待确认项必须保留原有标记。",
+    "输出采用可编辑 Markdown/JSON 中间稿，再导出 DOCX/PDF。",
+    "每一条生成条款保存来源字段、生成时间、模型版本和人工修改版本。"
+  ]
+}
