@@ -46,6 +46,13 @@ function findControl(definition, name) {
   return control;
 }
 
+function selfChosenApproverNodes(definition) {
+  return (definition.node_list || []).filter(node => {
+    if (!node.need_approver || !Array.isArray(node.approver_chosen_range)) return false;
+    return node.approver_chosen_range.some(range => range.approver_range_type === 0 && !(range.approver_range_ids || []).length);
+  });
+}
+
 export async function createApprovalInstance({ appId, appSecret, approvalCode, initiatorOpenId, docUrl, jobId, fileName, standardNo, standardName, reviewNote, publishDate, publishMode = 'Demo 模拟发布' }) {
   const token = await getTenantAccessToken(appId, appSecret);
   const definition = await getApprovalDefinition(token, approvalCode);
@@ -64,6 +71,12 @@ export async function createApprovalInstance({ appId, appSecret, approvalCode, i
     { id: findControl(definition, '计划发布日期').id, type: 'date', value: planDate },
     { id: radio.id, type: 'radioV2', value: publishOption.value }
   ];
+  // Demo templates use a self-chosen approver node. Without this list Feishu
+  // treats the node as empty and immediately auto-passes the instance.
+  const nodeApproverOpenIdList = selfChosenApproverNodes(definition).map(node => ({
+    key: node.node_id,
+    value: [initiatorOpenId]
+  }));
   const data = await requestJson(`${API_BASE}/approval/v4/instances`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
@@ -71,6 +84,7 @@ export async function createApprovalInstance({ appId, appSecret, approvalCode, i
       approval_code: approvalCode,
       open_id: initiatorOpenId,
       form: JSON.stringify(form),
+      ...(nodeApproverOpenIdList.length ? { node_approver_open_id_list: nodeApproverOpenIdList } : {}),
       uuid: `stdforge-${jobId}`,
       allow_resubmit: true
     })
@@ -78,7 +92,8 @@ export async function createApprovalInstance({ appId, appSecret, approvalCode, i
   if (!data.instance_code) throw new Error('飞书未返回审批实例编号');
   return {
     instanceCode: data.instance_code,
-    approvalUrl: `https://www.feishu.cn/approval/instance/detail?instance_code=${encodeURIComponent(data.instance_code)}`
+    approvalUrl: null,
+    approvalEntry: '请在飞书客户端的“工作台 → 审批”中查看待办或已发起事项。'
   };
 }
 

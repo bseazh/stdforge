@@ -159,10 +159,14 @@ async function syncToFeishu() {
 
 function showApproval(approval) {
   elements.submitApproval.classList.add('hidden');
-  elements.approvalLink.href = approval.approvalUrl;
-  elements.approvalLink.classList.remove('hidden');
+  if (approval.approvalUrl) {
+    elements.approvalLink.href = approval.approvalUrl;
+    elements.approvalLink.classList.remove('hidden');
+  } else {
+    elements.approvalLink.classList.add('hidden');
+  }
   elements.checkApproval.classList.remove('hidden');
-  elements.feishuMessage.textContent = `审批已创建：${approval.status || 'PENDING'}`;
+  elements.feishuMessage.textContent = `审批已创建：${approval.status || 'PENDING'}。${approval.approvalEntry || ''}`;
 }
 
 function defaultStandardNo() {
