@@ -103,6 +103,9 @@ dialog { width:min(560px,calc(100% - 30px)); padding:0; border:0; border-radius:
 .chapter-review-list em { padding:3px 7px; border-radius:999px; background:#f1f4f5; color:#60727a; font-size:10px; font-style:normal; white-space:nowrap; }
 .editor-document textarea[readonly] { border-color:#dbe3e5; background:#f8fafb; color:#52636c; cursor:default; }
 .editor-readonly-note { margin:18px 0 0; color:#71828a; font-size:11px; }
+.editor-layout.review-pane-hidden { grid-template-columns:210px minmax(0,1fr); }
+@media (max-width:1100px) { .editor-layout.review-pane-hidden { grid-template-columns:185px minmax(0,1fr); } }
+@media (max-width:760px) { .editor-layout.review-pane-hidden { grid-template-columns:1fr; } }
 
 /* Shows the real generation request as readable chapter-level progress. */
 .module-one-generation-dialog { width:min(620px,calc(100vw - 30px)); padding:24px; background:#fff; }
