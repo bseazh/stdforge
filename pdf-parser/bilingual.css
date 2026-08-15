@@ -43,9 +43,16 @@
 .api-note { margin:10px 0 0; padding:10px; color:#80590f; background:#fff8e5; border:1px solid #eddca9; font-size:11px; line-height:1.65; }
 .bilingual-glossary-panel { max-width:1060px; }
 .term-create-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px; gap:10px; margin-bottom:14px; padding:12px; border:1px solid #d8e4e6; background:#f8fbfb; }
+.term-create-row input:first-child { border-color:#bcded7; background:#f3fbf8; }
+.term-create-row input:nth-child(2) { border-color:#bed3ee; background:#f5f9ff; }
 .term-table { max-height:520px; overflow:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding-right:2px; }
-.term-row { display:grid; grid-template-columns:minmax(90px,.8fr) minmax(150px,1.2fr) 32px 32px; gap:7px; align-items:center; padding:9px; border:1px solid #d6e3e5; border-radius:6px; background:#fbfdfc; }
-.term-row input { border-color:#dce7e9; background:#fff; }
+.term-row { position:relative; display:grid; grid-template-columns:minmax(90px,.8fr) minmax(150px,1.2fr) 32px 32px; gap:7px; align-items:center; padding:9px 9px 9px 12px; border:1px solid #d6e3e5; border-radius:6px; background:linear-gradient(90deg,#f3fbf8 0,#f3fbf8 49%,#f5f9ff 49%,#f5f9ff 100%); box-shadow:0 6px 16px rgba(31,58,64,.045); }
+.term-row::before { content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px; border-radius:0 999px 999px 0; background:#42aa9c; }
+.term-row input { background:#fff; }
+.term-row input[data-field="zh"] { border-color:#afd8d0; background:#fbfffd; }
+.term-row input[data-field="en"] { border-color:#b9cfea; background:#fbfdff; }
+.term-row input[data-field="zh"]:focus { box-shadow:0 0 0 3px rgba(66,170,156,.14); }
+.term-row input[data-field="en"]:focus { box-shadow:0 0 0 3px rgba(74,130,190,.14); }
 .term-row button { min-height:32px; padding:0; background:#fff; }
 .bilingual-output-panel { margin-bottom:24px; }
 .empty-output { min-height:360px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#89979e; border:1px dashed #c8d3d7; background:linear-gradient(180deg,#fbfdfc,#eef6f4); text-align:center; }
