@@ -17,7 +17,7 @@ data:
       respond @private 404
 
       handle /api/* {
-        reverse_proxy http://119.29.242.172:4175
+        reverse_proxy http://{$NODE_IP}:4175
       }
 
       file_server
@@ -49,6 +49,11 @@ spec:
           ports:
             - containerPort: 8080
               name: http
+          env:
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
           volumeMounts:
             - name: site-files
               mountPath: /usr/share/caddy
