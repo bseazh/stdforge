@@ -56,12 +56,16 @@ let moduleOneSourceItem = null;
 let moduleOneTemplateText = '';
 let moduleOneTemplateName = 'GB/T 1.1 常见章节结构（演示）';
 let moduleOneTemplates = [];
+let moduleOneDemoInputs = [];
 let moduleOneTemplateItem = null;
 let moduleOneUploadedTemplateUrl = '';
 let moduleOnePdfPreviewRequest = 0;
 let moduleOneDrafts = {};
 let moduleOneActiveOutput = 'standardDraft';
 let moduleOneFeishuUrl = '';
+let moduleOneGenerationTimer = null;
+let moduleOneGenerationStartedAt = 0;
+let moduleOneGenerationActive = false;
 let activeEditorSection = 'safety';
 
 const editorOutlineSections = {
@@ -145,7 +149,7 @@ function updateModuleOneComparison() {
   lucide.createIcons();
 }
 
-async function selectModuleOneDemo(item, markdown) {
+async function selectModuleOneDemo(item, markdown, { syncTemplate = true } = {}) {
   moduleOneSourceText = markdown;
   moduleOneSourceName = item.fileName;
   moduleOneSourceItem = item;
@@ -156,7 +160,7 @@ async function selectModuleOneDemo(item, markdown) {
     const button = card.querySelector('[data-demo-select]');
     if (button) button.textContent = selected ? '已选中' : '选择';
   });
-  if (item.defaultTemplateId && moduleOneTemplateItem?.id !== 'uploaded') await selectModuleOneReferenceTemplate(item.defaultTemplateId, { silent: true });
+  if (syncTemplate && item.defaultTemplateId && moduleOneTemplateItem?.id !== 'uploaded') await selectModuleOneReferenceTemplate(item.defaultTemplateId, { silent: true });
   updateModuleOneDraftState();
   notify('已选择研发输入：' + item.title);
 }
@@ -217,7 +221,7 @@ function renderModuleOneTemplateLibrary() {
   lucide.createIcons();
 }
 
-async function selectModuleOneReferenceTemplate(id, { silent = false } = {}) {
+async function selectModuleOneReferenceTemplate(id, { silent = false, selectMatchedInput = !silent } = {}) {
   const item = moduleOneTemplates.find(candidate => candidate.id === id);
   if (!item) return;
   try {
@@ -229,6 +233,17 @@ async function selectModuleOneReferenceTemplate(id, { silent = false } = {}) {
     moduleOneTemplateItem = item;
     renderModuleOneTemplateLibrary();
     updateModuleOneDraftState();
+    const matchedDemo = selectMatchedInput && !moduleOneSourceText
+      ? moduleOneDemoInputs.find(candidate => candidate.id === id || candidate.defaultTemplateId === id)
+      : null;
+    if (matchedDemo) {
+      const sourceResponse = await fetch(matchedDemo.previewUrl);
+      const sourceResult = await sourceResponse.json();
+      if (!sourceResponse.ok) throw new Error(sourceResult.error || '研发输入读取失败');
+      await selectModuleOneDemo(matchedDemo, sourceResult.markdown, { syncTemplate: false });
+      if (!silent) notify('已关联研发输入：' + matchedDemo.title);
+      return;
+    }
     if (!silent) notify('已选参考模板：' + item.code);
   } catch (error) {
     notify(error.message);
@@ -254,11 +269,12 @@ async function loadModuleOneDemos() {
     const response = await fetch('/api/demo-inputs');
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || '演示输入加载失败');
+    moduleOneDemoInputs = payload.inputs || [];
     moduleOneTemplateText = payload.template?.text || '';
     moduleOneTemplateName = payload.template?.name || moduleOneTemplateName;
-    grid.innerHTML = payload.inputs.map(item => '<article class="module-one-demo-card" data-demo-id="' + escapeHtml(item.id) + '" tabindex="0" aria-pressed="false"><small>' + escapeHtml(item.industry) + '</small><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-demo-actions"><button class="button secondary" type="button" data-demo-preview>预览</button><button class="button primary" type="button" data-demo-select>选择</button></div></article>').join('');
+    grid.innerHTML = moduleOneDemoInputs.map(item => '<article class="module-one-demo-card" data-demo-id="' + escapeHtml(item.id) + '" tabindex="0" aria-pressed="false"><small>' + escapeHtml(item.industry) + '</small><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-demo-actions"><button class="button secondary" type="button" data-demo-preview>预览</button><button class="button primary" type="button" data-demo-select>选择</button></div></article>').join('');
     grid.querySelectorAll('.module-one-demo-card').forEach(card => {
-      const item = payload.inputs.find(candidate => candidate.id === card.dataset.demoId);
+      const item = moduleOneDemoInputs.find(candidate => candidate.id === card.dataset.demoId);
       const readPreview = async () => {
         const response = await fetch(item.previewUrl);
         const result = await response.json();
@@ -281,6 +297,9 @@ async function loadModuleOneDemos() {
         try { await selectModuleOneDemo(item, await readPreview()); } catch (error) { notify(error.message); }
       });
     });
+    if (moduleOneTemplateItem && !moduleOneSourceText) {
+      await selectModuleOneReferenceTemplate(moduleOneTemplateItem.id, { silent: true, selectMatchedInput: true });
+    }
     updateModuleOneDraftState();
   } catch (error) {
     grid.innerHTML = '<p class="draft-loading">演示输入加载失败：' + escapeHtml(error.message) + '</p>';
@@ -330,11 +349,78 @@ function renderModuleOneOutput() {
   updateModuleOneComparison();
 }
 
+const moduleOneGenerationSteps = [
+  '读取研发技术要求',
+  '提取参考模板章节',
+  '映射制冷与温控参数',
+  '生成范围、术语和技术要求',
+  '生成试验方法与检验规则',
+  '检查待确认项和来源字段',
+  '输出三类草案'
+];
+
+function renderModuleOneGenerationProgress(activeStep = 0, percent = 0, state = 'running') {
+  document.querySelector('#moduleOneGenerationSteps').innerHTML = moduleOneGenerationSteps.map((step, index) => {
+    const complete = state === 'complete' || index < activeStep;
+    const active = state === 'running' && index === activeStep;
+    const failed = state === 'failed' && index === activeStep;
+    const icon = complete ? 'check' : failed ? 'triangle-alert' : active ? 'loader-circle' : 'circle';
+    return '<li class="' + (complete ? ' complete' : '') + (active ? ' active' : '') + (failed ? ' failed' : '') + '"><i data-lucide="' + icon + '"></i><span>' + step + '</span><small>' + (complete ? '已完成' : failed ? '未完成' : active ? '处理中' : '等待') + '</small></li>';
+  }).join('');
+  document.querySelector('#moduleOneGenerationBar').style.width = percent + '%';
+  document.querySelector('#moduleOneGenerationPercent').textContent = percent + '%';
+  lucide.createIcons();
+}
+
+function openModuleOneGenerationProgress() {
+  const dialog = document.querySelector('#moduleOneGenerationDialog');
+  moduleOneGenerationActive = true;
+  moduleOneGenerationStartedAt = Date.now();
+  document.querySelector('#moduleOneGenerationTitle').textContent = '正在生成' + (moduleOneTemplateItem?.title || '标准') + '草案';
+  document.querySelector('#moduleOneGenerationDescription').textContent = '正在按参考模板组织章节，完成后将自动进入草案审阅。';
+  document.querySelector('#moduleOneGenerationStatus').textContent = '正在准备生成任务…';
+  document.querySelector('#moduleOneGenerationClose').classList.add('hidden');
+  dialog.classList.remove('has-error');
+  renderModuleOneGenerationProgress(0, 4);
+  if (!dialog.open) dialog.showModal();
+  let activeStep = 0;
+  let percent = 4;
+  window.clearInterval(moduleOneGenerationTimer);
+  moduleOneGenerationTimer = window.setInterval(() => {
+    activeStep = Math.min(moduleOneGenerationSteps.length - 1, activeStep + 1);
+    percent = Math.min(88, percent + 12);
+    renderModuleOneGenerationProgress(activeStep, percent);
+    document.querySelector('#moduleOneGenerationStatus').textContent = '正在处理：' + moduleOneGenerationSteps[activeStep];
+  }, 420);
+}
+
+async function finishModuleOneGenerationProgress() {
+  window.clearInterval(moduleOneGenerationTimer);
+  const wait = Math.max(0, 1600 - (Date.now() - moduleOneGenerationStartedAt));
+  if (wait) await new Promise(resolve => window.setTimeout(resolve, wait));
+  renderModuleOneGenerationProgress(moduleOneGenerationSteps.length, 100, 'complete');
+  document.querySelector('#moduleOneGenerationStatus').textContent = '三类草案已生成，正在进入草案审阅。';
+  await new Promise(resolve => window.setTimeout(resolve, 450));
+  moduleOneGenerationActive = false;
+  document.querySelector('#moduleOneGenerationDialog').close();
+}
+
+function failModuleOneGenerationProgress(error) {
+  window.clearInterval(moduleOneGenerationTimer);
+  moduleOneGenerationActive = false;
+  document.querySelector('#moduleOneGenerationStatus').textContent = '生成失败：' + error.message;
+  document.querySelector('#moduleOneGenerationTitle').textContent = '草案生成未完成';
+  document.querySelector('#moduleOneGenerationDescription').textContent = '请检查输入文件、模板解析结果或生成服务后重试。';
+  document.querySelector('#moduleOneGenerationDialog').classList.add('has-error');
+  document.querySelector('#moduleOneGenerationClose').classList.remove('hidden');
+}
+
 async function generateModuleOneDrafts() {
   if (!moduleOneSourceText) return notify('请先选择一份研发技术要求');
   const button = document.querySelector('#moduleOneGenerate');
   button.disabled = true;
   document.querySelector('#moduleOneProgress').classList.remove('hidden');
+  openModuleOneGenerationProgress();
   try {
     const response = await fetch('/api/drafts/generate', {
       method: 'POST',
@@ -349,8 +435,12 @@ async function generateModuleOneDrafts() {
     document.querySelector('#moduleOneOpenFeishu').classList.add('hidden');
     document.querySelector('#moduleOneOutput').classList.remove('hidden');
     renderModuleOneOutput();
+    await finishModuleOneGenerationProgress();
+    setFlowStage(2);
+    document.querySelector('#moduleOneOutput').scrollIntoView({ behavior: 'smooth', block: 'start' });
     notify(result.mode === 'llm' ? 'LLM 已生成三类草案' : '已生成三类演示草案');
   } catch (error) {
+    failModuleOneGenerationProgress(error);
     notify(error.message);
   } finally {
     document.querySelector('#moduleOneProgress').classList.add('hidden');
@@ -472,6 +562,10 @@ document.querySelector('#moduleOneTemplateFile').addEventListener('change', even
 });
 document.querySelector('#moduleOneParseTemplate').addEventListener('click', parseModuleOneTemplate);
 document.querySelector('#moduleOneGenerate').addEventListener('click', generateModuleOneDrafts);
+document.querySelector('#moduleOneGenerationClose').addEventListener('click', () => document.querySelector('#moduleOneGenerationDialog').close());
+document.querySelector('#moduleOneGenerationDialog').addEventListener('cancel', event => {
+  if (moduleOneGenerationActive) event.preventDefault();
+});
 document.querySelector('#moduleOneDownload').addEventListener('click', downloadModuleOneDraft);
 document.querySelector('#moduleOneSyncFeishu').addEventListener('click', syncModuleOneDraftToFeishu);
 document.querySelectorAll('[data-module-one-output]').forEach(button => button.addEventListener('click', () => {

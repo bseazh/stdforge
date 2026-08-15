@@ -63,3 +63,26 @@ dialog { width:min(560px,calc(100% - 30px)); padding:0; border:0; border-radius:
 .module-one-output-tabs #moduleOneSyncFeishu,.module-one-output-tabs #moduleOneOpenFeishu { margin-left:0; }
 .editor-document textarea[readonly] { border-color:#dbe3e5; background:#f8fafb; color:#52636c; cursor:default; }
 .editor-readonly-note { margin:18px 0 0; color:#71828a; font-size:11px; }
+
+/* Shows the real generation request as readable chapter-level progress. */
+.module-one-generation-dialog { width:min(620px,calc(100vw - 30px)); padding:24px; background:#fff; }
+.module-one-generation-header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; }
+.module-one-generation-header h2 { margin:2px 0 5px; color:#263d44; font-size:19px; }
+.module-one-generation-header p:not(.panel-kicker) { max-width:410px; margin:0; color:#6c7d84; font-size:12px; line-height:1.55; }
+.module-one-generation-header>span { flex:0 0 auto; min-width:52px; padding:8px 5px; border:1px solid #bcdcd5; color:#087368; background:#f1faf7; text-align:center; font-size:14px; font-weight:700; }
+.generation-progress-track { height:7px; overflow:hidden; margin:20px 0 15px; background:#e7efee; }
+.generation-progress-track span { display:block; width:0; height:100%; background:#128476; transition:width .28s ease; }
+.generation-step-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 16px; margin:0; padding:0; list-style:none; }
+.generation-step-list li { display:grid; grid-template-columns:17px 1fr auto; gap:6px; align-items:center; min-height:30px; color:#819097; border-bottom:1px solid #edf1f1; font-size:11px; }
+.generation-step-list i { width:14px; color:#a8b5b7; }
+.generation-step-list small { color:#9aa6aa; font-size:9px; }
+.generation-step-list li.active { color:#1d625b; font-weight:600; }
+.generation-step-list li.active i { color:#168777; animation:spin .9s linear infinite; }
+.generation-step-list li.active small { color:#168777; }
+.generation-step-list li.complete { color:#45645f; }
+.generation-step-list li.complete i,.generation-step-list li.complete small { color:#168777; }
+.generation-step-list li.failed,.generation-step-list li.failed i,.generation-step-list li.failed small { color:#b46d24; }
+.module-one-generation-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; color:#687a80; font-size:11px; }
+.module-one-generation-footer .button { min-height:30px; padding:0 12px; }
+.module-one-generation-dialog:has(.generation-step-list li.failed) .generation-progress-track span { background:#be7a32; }
+@media (max-width:760px) { .module-one-generation-dialog { padding:18px; }.generation-step-list { grid-template-columns:1fr; } }
