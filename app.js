@@ -27,7 +27,19 @@ function notify(message) {
 function showView(id) {
   document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === id));
   document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === id));
+  document.querySelectorAll('.module-tab').forEach(item => item.classList.toggle('active', item.dataset.view === id));
+  if (window.location.hash !== `#${id}`) window.history.replaceState(null, '', `#${id}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showPolicyStage(stage) {
+  document.querySelectorAll('.policy-stage-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.policyStage === stage));
+  document.querySelectorAll('.policy-stage').forEach(panel => panel.classList.toggle('active', panel.dataset.policyStagePanel === stage));
+  document.querySelector('#policies').scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character]);
 }
 
 function renderIssue(index) {
@@ -67,6 +79,7 @@ function setFlowStage(stage) {
 }
 
 document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
+document.querySelectorAll('.module-tab').forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
 document.querySelectorAll('#showStandard').forEach(button => button.addEventListener('click', () => showView('standards')));
 document.querySelectorAll('#showAnnouncements').forEach(button => button.addEventListener('click', () => showView('announcements')));
 document.querySelectorAll('#showPolicies').forEach(button => button.addEventListener('click', () => showView('policies')));
@@ -74,7 +87,36 @@ document.querySelectorAll('.issue-row').forEach(row => row.addEventListener('cli
 document.querySelector('#runAudit').addEventListener('click', () => { setFlowStage(2); notify('规范性审核完成：发现 4 个待处理问题'); });
 document.querySelector('#refreshSignals').addEventListener('click', () => notify('已同步 12 条标准公告与组织信息'));
 document.querySelector('#collectSource').addEventListener('click', () => notify('已采集公开元数据并写入来源留痕'));
-document.querySelector('#generateBrief').addEventListener('click', () => notify('已生成政策解读草稿，等待政策研究员审核'));
+document.querySelectorAll('.policy-stage-tab').forEach(tab => tab.addEventListener('click', () => showPolicyStage(tab.dataset.policyStage)));
+document.querySelector('#startPolicyCollection').addEventListener('click', () => {
+  showPolicyStage('discover');
+  notify('已开始从工信部等官方来源采集政策（演示数据）');
+});
+document.querySelector('#goToClassification').addEventListener('click', () => {
+  showPolicyStage('classify');
+  notify('已确认 3 条候选政策，等待人工确认分类');
+});
+document.querySelector('#backToDiscover').addEventListener('click', () => showPolicyStage('discover'));
+document.querySelector('#confirmClassification').addEventListener('click', () => {
+  showPolicyStage('interpret');
+  notify('政策分类已确认：国家级 · 产业政策');
+});
+document.querySelectorAll('.analysis-type').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('.analysis-type').forEach(item => item.classList.toggle('active', item === button));
+}));
+document.querySelector('#generatePolicyReport').addEventListener('click', () => {
+  const audience = escapeHtml(document.querySelector('#analysisAudience').value.trim() || '标准化管理组');
+  const clauseMode = document.querySelector('.analysis-type.active').dataset.reportType === 'clause';
+  const report = document.querySelector('#analysisReport');
+  report.innerHTML = clauseMode
+    ? `<div class="report-content"><span class="status teal">条款拆解型 · 已生成</span><h3>绿色智能家电消费实施方案</h3><p>政策将绿色智能家电纳入消费升级重点，要求以旧换新与能效提升协同推进。与现有标准工作直接相关的内容已提取为可复核条目。</p><div class="report-points"><div><span>关联要求</span><strong>绿色产品供给</strong></div><div><span>标准影响</span><strong>能效与品质分级</strong></div><div><span>建议动作</span><strong>补充关联矩阵</strong></div></div><div class="report-evidence"><strong>原文依据</strong><br>“推进绿色智能家电以旧换新，鼓励高效节能产品消费。”</div></div>`
+    : `<div class="report-content"><span class="status teal">专家解读型 · 已生成</span><h3>面向 ${audience} 的政策解读</h3><p>政策为绿色智能家电的品质升级、能效提升与循环流通提出明确导向。建议将政策要求映射到鉴定、分级和回收记录，形成标准修订评估依据。</p><div class="report-points"><div><span>适用对象</span><strong>家电生产、回收与鉴定企业</strong></div><div><span>主要机会</span><strong>绿色智能产品消费升级</strong></div><div><span>建议动作</span><strong>建立政策-条款映射</strong></div></div><div class="report-evidence"><strong>原文依据 · 3 处</strong><br>“推进绿色智能家电以旧换新，鼓励高效节能产品消费。”</div></div>`;
+  lucide.createIcons();
+  notify('已生成带原文依据的政策分析报告');
+});
+document.querySelector('#backToInterpret').addEventListener('click', () => showPolicyStage('interpret'));
+document.querySelector('#sendPolicyReport').addEventListener('click', () => notify('报告已推送至 3 位已选接收人，并生成发送记录'));
+document.querySelector('#openPolicySchedule').addEventListener('click', () => notify('定时更新计划：每周一 09:00（演示配置）'));
 document.querySelector('#addComment').addEventListener('click', async event => {
   const button = event.currentTarget;
   if (button.disabled) return;
@@ -124,4 +166,6 @@ document.querySelector('#runFlow').addEventListener('click', () => {
 });
 
 hydrateParsedStandard();
+const initialView = window.location.hash.slice(1);
+if (['workspace', 'standards', 'announcements', 'policies'].includes(initialView)) showView(initialView);
 lucide.createIcons();

@@ -35,6 +35,11 @@
       <main>
         <header class="topbar">
           <div class="crumb"><span>标准编制</span><i data-lucide="chevron-right"></i><strong data-standard-number>GB/T 46274-2025</strong></div>
+          <nav class="module-tabs" aria-label="业务模块">
+            <button class="module-tab active" type="button" data-view="standards"><span>模块 1</span>标准协同</button>
+            <button class="module-tab" type="button" data-view="announcements"><span>模块 2</span>公告追踪</button>
+            <button class="module-tab" type="button" data-view="policies"><span>模块 3</span>政策洞察</button>
+          </nav>
           <div class="top-actions">
             <button class="icon-button" aria-label="通知" title="通知"><i data-lucide="bell"></i><em></em></button>
             <button class="button secondary" type="button" data-kdb-assistant-open><i data-lucide="messages-square"></i>知识助手</button>
@@ -92,10 +97,10 @@
             </section>
 
             <section class="panel policy-panel">
-              <div class="panel-header"><div><p class="panel-kicker">模块三 · 法规与政策</p><h2>相关政策解读</h2></div><span class="status teal">已审核</span></div>
-              <div class="policy-main"><span class="doc-icon"><i data-lucide="scroll-text"></i></span><div><strong>推动消费品以旧换新行动方案</strong><p>国务院 · 2024-03-13</p></div></div>
-              <div class="policy-impact"><span>产业影响</span><p>鼓励健全废旧家电回收、鉴定、分级和流通体系，与本标准直接相关。</p></div>
-              <div class="policy-footer"><span><i data-lucide="quote"></i>3 处原文依据</span><button class="text-button" id="showPolicies">查看解读</button></div>
+              <div class="panel-header"><div><p class="panel-kicker">模块三 · 法规与政策</p><h2>政策洞察与处置</h2></div><span class="status teal">待办 3</span></div>
+              <div class="policy-main"><span class="doc-icon"><i data-lucide="workflow"></i></span><div><strong>发现、分类、解读、推送</strong><p>基于官方来源的政策处理闭环</p></div></div>
+              <div class="policy-impact"><span>本周关注</span><p>家电以旧换新、绿色制造与能效标准等政策已进入待处理队列。</p></div>
+              <div class="policy-footer"><span><i data-lucide="shield-check"></i>原文依据可回溯</span><button class="text-button" id="showPolicies">进入模块 3</button></div>
             </section>
           </div>
         </section>
@@ -116,8 +121,35 @@
         </section>
 
         <section class="view" id="policies">
-          <div class="page-heading compact-heading"><div><p class="eyebrow">模块三</p><h1>法律法规与政策解读</h1><p class="subtle">AI 仅生成有原文出处的解读草稿，发布前必须经过指定人员审核。</p></div><button class="button primary" id="generateBrief"><i data-lucide="sparkles"></i>生成解读草稿</button></div>
-          <div class="policy-layout"><section class="panel policy-list"><div class="list-header"><strong>关注政策</strong><button class="icon-button small" title="添加关键词"><i data-lucide="plus"></i></button></div><button class="policy-row active"><span class="doc-icon small-doc"><i data-lucide="scroll-text"></i></span><span><strong>推动消费品以旧换新行动方案</strong><small>国务院 · 国家 · 2024-03-13</small></span><span class="status teal">已审核</span></button><button class="policy-row"><span class="doc-icon small-doc"><i data-lucide="badge-percent"></i></span><span><strong>家电以旧换新补贴实施细则</strong><small>商务部 · 国家 · 2024-08-25</small></span><span class="status amber">待审核</span></button><button class="policy-row"><span class="doc-icon small-doc"><i data-lucide="recycle"></i></span><span><strong>废弃电器电子产品处理管理办法</strong><small>生态环境部 · 国家 · 2024-12-01</small></span><span class="status gray">已归档</span></button></section><section class="panel interpretation"><div class="interpretation-header"><div><span class="status teal">已审核</span><h2>推动消费品以旧换新行动方案</h2><p>国务院 · 国发〔2024〕7 号</p></div><button class="button secondary"><i data-lucide="share-2"></i>推送</button></div><div class="interpretation-body"><div><h3>与标准化工作的关系</h3><p>政策提出完善废旧家电等再生资源回收网络，推动高质量耐用消费品更多进入居民生活。二手家电的检测、鉴定、分级和质量保证，是实现规范流通的基础。</p></div><div class="impact-grid"><div><span>适用对象</span><strong>家电生产、回收、鉴定、流通企业</strong></div><div><span>建议动作</span><strong>建立鉴定记录和品质分级数据</strong></div><div><span>关联标准</span><strong>GB/T 46274、GB/T 21667</strong></div></div><div class="evidence"><div class="evidence-head"><i data-lucide="quote"></i><strong>原文依据</strong><span>3 处</span></div><blockquote>“推动汽车、家电等耐用消费品以旧换新，促进耐用消费品更新换代。”</blockquote><a href="https://www.gov.cn/zhengce/content/202403/content_6940154.htm" target="_blank" rel="noreferrer">查看政策原文 <i data-lucide="external-link"></i></a></div></div></section></div>
+          <div class="page-heading compact-heading"><div><p class="eyebrow">模块三 · 伙伴模块已归并</p><h1>政策洞察与处置</h1><p class="subtle">从官方来源发现政策，完成分类、可追溯解读与定向推送。</p></div><button class="button primary" id="startPolicyCollection"><i data-lucide="play"></i>开始政策采集</button></div>
+          <nav class="policy-stage-tabs" aria-label="政策处理步骤">
+            <button class="policy-stage-tab active" type="button" data-policy-stage="discover"><span>01</span><i data-lucide="radar"></i><strong>政策发现与更新</strong><small>官方来源、范围与频率</small></button>
+            <button class="policy-stage-tab" type="button" data-policy-stage="classify"><span>02</span><i data-lucide="tags"></i><strong>政策分类标注</strong><small>层级、类型与相关性</small></button>
+            <button class="policy-stage-tab" type="button" data-policy-stage="interpret"><span>03</span><i data-lucide="file-search"></i><strong>政策分析与解读</strong><small>原文依据、影响与行动</small></button>
+            <button class="policy-stage-tab" type="button" data-policy-stage="deliver"><span>04</span><i data-lucide="send"></i><strong>邮件定向推送</strong><small>审核后精准送达</small></button>
+          </nav>
+
+          <section class="policy-stage active" data-policy-stage-panel="discover">
+            <div class="policy-workbench-grid">
+              <section class="panel policy-config"><div class="panel-header"><div><p class="panel-kicker">采集配置</p><h2>本次关注范围</h2></div><span class="status teal">官方来源</span></div><label class="policy-field"><span>关注关键词</span><input id="policyKeywords" value="冰箱、白色家电、制冷、能效" /></label><div class="policy-choice-row"><span>政策发布日期</span><button class="filter active" type="button">最近 30 天</button><button class="filter" type="button">最近 1 年</button><button class="filter" type="button">自定义</button></div><div class="source-option"><span class="source-logo">MIIT</span><span><strong>工业和信息化部政策文件库</strong><small>已连接 · 工业和信息化部官方来源</small></span><i data-lucide="circle-check-big"></i></div><div class="policy-config-footer"><span><i data-lucide="calendar-clock"></i>每周一 09:00 自动更新</span><button class="text-button" id="openPolicySchedule">调整</button></div></section>
+              <section class="panel policy-queue"><div class="panel-header"><div><p class="panel-kicker">待处理箱</p><h2>本次发现 3 条高相关政策</h2></div><span class="count-pill">3</span></div><div class="policy-queue-list"><article><span class="status teal">国家级</span><div><strong>关于推动轻工业高质量发展的指导意见</strong><small>工业和信息化部 · 2026-08-08 · 家电制造、绿色低碳</small></div><button class="icon-button small" title="查看原文"><i data-lucide="external-link"></i></button></article><article><span class="status amber">待分类</span><div><strong>绿色智能家电消费实施方案</strong><small>商务部 · 2026-08-02 · 以旧换新、能效升级</small></div><button class="icon-button small" title="查看原文"><i data-lucide="external-link"></i></button></article><article><span class="status gray">地方</span><div><strong>广东省循环经济发展行动计划</strong><small>广东省人民政府 · 2026-07-29 · 回收体系、再制造</small></div><button class="icon-button small" title="查看原文"><i data-lucide="external-link"></i></button></article></div><button class="button secondary full-policy-action" id="goToClassification"><i data-lucide="tags"></i>确认并进入分类标注</button></section>
+            </div>
+          </section>
+
+          <section class="policy-stage" data-policy-stage-panel="classify">
+            <div class="policy-section-heading"><div><p class="panel-kicker">分类标注</p><h2>政策标签由模型建议，需人工确认</h2></div><span class="status amber">1 条待确认</span></div>
+            <section class="panel classification-card"><div class="classification-title"><span class="doc-icon"><i data-lucide="scroll-text"></i></span><div><strong>绿色智能家电消费实施方案</strong><p>商务部 · 2026-08-02 · 来源正文已读取</p></div><a href="https://www.gov.cn/" target="_blank" rel="noreferrer" title="打开官方来源"><i data-lucide="external-link"></i></a></div><div class="classification-grid"><label><span>行政层级</span><select id="policyLevel"><option>国家级</option><option>省级</option><option>市级</option></select></label><label><span>政策类型</span><select id="policyCategory"><option>产业政策</option><option>通用政策</option></select></label><div><span>模型置信度</span><strong class="confidence">92%</strong><small>依据：发布机关、适用范围、家电关键词</small></div></div><div class="model-reasoning"><i data-lucide="sparkles"></i><p>政策面向绿色智能家电消费与以旧换新，直接影响家电产品能效、品质鉴定和流通环节。</p></div><div class="policy-card-actions"><button class="button secondary" id="backToDiscover">返回政策发现</button><button class="button primary" id="confirmClassification"><i data-lucide="check"></i>确认并进入政策分析</button></div></section>
+          </section>
+
+          <section class="policy-stage" data-policy-stage-panel="interpret">
+            <div class="policy-section-heading"><div><p class="panel-kicker">政策分析</p><h2>绿色智能家电消费实施方案</h2><p class="subtle">选择分析框架后生成带来源证据的解读草稿。</p></div><span class="status teal">分类已确认</span></div>
+            <div class="policy-workbench-grid interpretation-grid"><section class="panel analysis-config"><h3>分析框架</h3><button class="analysis-type active" type="button" data-report-type="expert"><i data-lucide="book-open-text"></i><span><strong>专家解读型</strong><small>形成影响、风险、机会与行动建议</small></span><i data-lucide="check"></i></button><button class="analysis-type" type="button" data-report-type="clause"><i data-lucide="list-checks"></i><span><strong>条款拆解型</strong><small>逐条定位政策要求与标准关联</small></span></button><label class="policy-field"><span>分析主体</span><input id="analysisAudience" value="标准化管理组" /></label><button class="button primary full-policy-action" id="generatePolicyReport"><i data-lucide="sparkles"></i>生成分析报告</button></section><section class="panel analysis-report" id="analysisReport"><div class="report-empty"><i data-lucide="file-search"></i><strong>分析报告将在这里显示</strong><span>确认分析框架与主体后，生成可复核的政策解读。</span></div></section></div>
+          </section>
+
+          <section class="policy-stage" data-policy-stage-panel="deliver">
+            <div class="policy-section-heading"><div><p class="panel-kicker">定向推送</p><h2>将已审核报告发送给相关人员</h2><p class="subtle">仅可推送带官方来源和人工确认记录的报告。</p></div><span class="status teal">可推送</span></div>
+            <div class="policy-workbench-grid delivery-grid"><section class="panel delivery-report"><div class="delivery-report-title"><i data-lucide="file-check-2"></i><div><strong>绿色智能家电消费实施方案 · 专家解读报告</strong><small>生成于刚刚 · 已关联 3 处原文依据</small></div></div><p>建议建立以能效与品质鉴定为核心的政策映射表，并将相关要求纳入 GB/T 46274 的后续修订评估。</p><button class="text-button" id="backToInterpret">查看报告 <i data-lucide="arrow-right"></i></button></section><section class="panel recipient-panel"><div class="panel-header"><div><p class="panel-kicker">接收分组</p><h2>选择推送对象</h2></div><span class="status gray">3 人</span></div><label class="recipient-option"><input type="checkbox" checked /><span class="avatar">标</span><span><strong>标准化工程师</strong><small>王敏、李晨</small></span></label><label class="recipient-option"><input type="checkbox" checked /><span class="avatar policy-avatar">政</span><span><strong>政策研究人员</strong><small>陈曦</small></span></label><label class="recipient-option"><input type="checkbox" /><span class="avatar business-avatar">业</span><span><strong>业务负责人</strong><small>尚未选择</small></span></label><button class="button primary full-policy-action" id="sendPolicyReport"><i data-lucide="send"></i>推送报告</button></section></div>
+          </section>
         </section>
       </main>
     </div>
