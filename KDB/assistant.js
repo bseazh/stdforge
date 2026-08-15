@@ -1,7 +1,10 @@
 (() => {
   const moduleLabels = { 'standard-drafting': '标准编写', standards: '标准', policies: '政策' };
+  const positionKey = 'stdforge-kdb-assistant-position';
   let selectedFile;
   let pollTimer;
+  let dragState;
+  let suppressFabClick = false;
 
   const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character]);
   const isPdf = file => file?.type === 'application/pdf' || file?.name?.toLowerCase().endsWith('.pdf');
@@ -12,7 +15,7 @@
       <i data-lucide="sparkles"></i><span>知识助手</span>
     </button>
     <aside class="kdb-assistant" aria-label="KDB 知识助手" aria-hidden="true">
-      <header class="kdb-assistant-header"><div><span class="kdb-assistant-kicker">KDB</span><strong>知识助手</strong><small>跨页面检索与文档入库</small></div><div><a href="/KDB/" title="打开知识库管理页"><i data-lucide="database"></i></a><button type="button" class="kdb-assistant-close" aria-label="关闭知识助手"><i data-lucide="x"></i></button></div></header>
+      <header class="kdb-assistant-header"><div><span class="kdb-assistant-kicker">KDB</span><strong>知识助手</strong><small>跨页面检索与文档入库</small></div><div><button type="button" class="kdb-assistant-drag-handle" aria-label="拖动知识助手" title="拖动知识助手"><i data-lucide="grip-horizontal"></i></button><button type="button" class="kdb-assistant-reset-position" aria-label="重置助手位置" title="重置位置"><i data-lucide="locate-fixed"></i></button><a href="/KDB/" title="打开知识库管理页"><i data-lucide="database"></i></a><button type="button" class="kdb-assistant-close" aria-label="关闭知识助手"><i data-lucide="x"></i></button></div></header>
       <div class="kdb-assistant-body">
         <form class="kdb-assistant-form">
           <div class="kdb-assistant-fields"><label>检索范围<select name="module"><option value="">全部知识库</option><option value="standard-drafting">标准编写</option><option value="standards">标准</option><option value="policies">政策</option></select></label></div>
@@ -33,21 +36,89 @@
   const uploadModule = shell.querySelector('.kdb-upload-actions select');
   const uploadButton = shell.querySelector('.kdb-upload-actions button');
   const uploadStatus = shell.querySelector('.kdb-upload-status');
+  const dragHandle = shell.querySelector('.kdb-assistant-drag-handle');
+  const resetPositionButton = shell.querySelector('.kdb-assistant-reset-position');
+
+  function readPosition() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(positionKey));
+      if (Number.isFinite(saved?.right) && Number.isFinite(saved?.bottom)) return saved;
+    } catch { /* Ignore a malformed local preference. */ }
+    return { right: 24, bottom: 24 };
+  }
+
+  function positionLimits(movingPanel = shell.classList.contains('is-open')) {
+    const gutter = 14;
+    const panelWidth = Math.min(shell.offsetWidth || 500, window.innerWidth - gutter * 2);
+    const panelHeight = Math.min(shell.offsetHeight || 620, window.innerHeight - gutter * 2);
+    return {
+      minRight: gutter,
+      maxRight: Math.max(gutter, movingPanel ? window.innerWidth - panelWidth - gutter : window.innerWidth - 54),
+      minBottom: gutter,
+      maxBottom: Math.max(gutter, movingPanel ? window.innerHeight - panelHeight - 74 : window.innerHeight - 54)
+    };
+  }
+
+  function applyPosition(next, movingPanel = shell.classList.contains('is-open'), persist = true) {
+    const limits = positionLimits(movingPanel);
+    const position = {
+      right: Math.round(Math.min(limits.maxRight, Math.max(limits.minRight, Number(next.right) || 24))),
+      bottom: Math.round(Math.min(limits.maxBottom, Math.max(limits.minBottom, Number(next.bottom) || 24)))
+    };
+    document.documentElement.style.setProperty('--kdb-assistant-right', `${position.right}px`);
+    document.documentElement.style.setProperty('--kdb-assistant-bottom', `${position.bottom}px`);
+    if (persist) window.localStorage.setItem(positionKey, JSON.stringify(position));
+    return position;
+  }
+
+  let assistantPosition = applyPosition(readPosition(), false, false);
+
+  function resetPosition() {
+    assistantPosition = { right: 24, bottom: 24 };
+    window.localStorage.removeItem(positionKey);
+    applyPosition(assistantPosition, shell.classList.contains('is-open'), false);
+  }
+
+  function startDrag(event, movingPanel) {
+    if (event.button !== undefined && event.button !== 0) return;
+    if (movingPanel) event.preventDefault();
+    dragState = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, startPosition: assistantPosition, movingPanel, moved: false };
+    document.body.classList.add('kdb-assistant-dragging');
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function moveDrag(event) {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    if (Math.abs(event.clientX - dragState.startX) > 3 || Math.abs(event.clientY - dragState.startY) > 3) dragState.moved = true;
+    assistantPosition = applyPosition({
+      right: dragState.startPosition.right - (event.clientX - dragState.startX),
+      bottom: dragState.startPosition.bottom - (event.clientY - dragState.startY)
+    }, dragState.movingPanel);
+  }
+
+  function finishDrag(event) {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    if (!dragState.movingPanel && dragState.moved) suppressFabClick = true;
+    dragState = undefined;
+    document.body.classList.remove('kdb-assistant-dragging');
+  }
 
   function setOpen(open) {
     shell.classList.toggle('is-open', open);
     shell.setAttribute('aria-hidden', String(!open));
     fab.setAttribute('aria-expanded', String(open));
+    assistantPosition = applyPosition(assistantPosition, open);
     if (open) window.setTimeout(() => form.question.focus(), 180);
   }
 
   function renderResult(payload) {
     const citationsById = new Map((payload.citations || []).map(citation => [String(citation.id), citation]));
     const answer = escapeHtml(payload.answer).replace(/\[(\d+)\]/g, (marker, id) => citationsById.has(id)
-      ? `<button class="kdb-citation-link" type="button" data-citation-id="${id}">${marker}</button>`
+      ? ''
       : marker).replace(/\n/g, '<br>');
+    const citationRail = (payload.citations || []).map(citation => `<button class="kdb-citation-link" type="button" data-citation-id="${citation.id}" aria-label="查看引用 ${citation.id}" title="${escapeHtml(citation.title)}">${citation.id}</button>`).join('');
     resultPanel.classList.remove('is-empty');
-    resultPanel.innerHTML = `<div class="kdb-result-label"><i data-lucide="sparkles"></i><span>${payload.mode === 'llm' ? '基于知识库生成' : '检索结果'}</span></div><p class="kdb-result-answer">${answer}</p><div class="kdb-citation-focus hidden"></div>`;
+    resultPanel.innerHTML = `<div class="kdb-result-layout"><div><div class="kdb-result-label"><i data-lucide="sparkles"></i><span>${payload.mode === 'llm' ? '基于知识库生成' : '检索结果'}</span></div><p class="kdb-result-answer">${answer}</p></div>${citationRail ? `<aside class="kdb-citation-rail" aria-label="引用来源">${citationRail}</aside>` : ''}</div><div class="kdb-citation-focus hidden"></div>`;
     resultPanel.querySelectorAll('.kdb-citation-link').forEach(button => button.addEventListener('click', () => {
       const citation = citationsById.get(button.dataset.citationId);
       if (!citation) return;
@@ -128,7 +199,17 @@
     }
   }
 
-  fab.addEventListener('click', () => setOpen(!shell.classList.contains('is-open')));
+  fab.addEventListener('click', () => {
+    if (suppressFabClick) { suppressFabClick = false; return; }
+    setOpen(!shell.classList.contains('is-open'));
+  });
+  fab.addEventListener('pointerdown', event => startDrag(event, false));
+  dragHandle.addEventListener('pointerdown', event => startDrag(event, true));
+  window.addEventListener('pointermove', moveDrag);
+  window.addEventListener('pointerup', finishDrag);
+  window.addEventListener('pointercancel', finishDrag);
+  resetPositionButton.addEventListener('click', resetPosition);
+  window.addEventListener('resize', () => { assistantPosition = applyPosition(assistantPosition, shell.classList.contains('is-open')); });
   shell.querySelector('.kdb-assistant-close').addEventListener('click', () => setOpen(false));
   document.querySelectorAll('[data-kdb-assistant-open]').forEach(button => button.addEventListener('click', () => setOpen(true)));
   document.addEventListener('keydown', event => { if (event.key === 'Escape') setOpen(false); });
