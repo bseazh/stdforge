@@ -258,6 +258,36 @@ const moduleOneChapterReviews = [
   ['附录 A/B', '补充储藏温度试验记录表和气味性评价记录。', '实验室 / 标准化']
 ];
 
+function draftChange(value, label = '研发输入') {
+  return '<mark class="draft-change">' + value + '<span>' + label + '</span></mark>';
+}
+
+function renderModuleOneFullDraftReview() {
+  const review = document.querySelector('#moduleOneFullDraftReview');
+  if (!review) return;
+  const source = escapeHtml(moduleOneSourceItem?.title || '车载冰箱温控与性能技术要求');
+  const template = escapeHtml(moduleOneTemplateItem?.code || 'QC/T 1196—2023');
+  const changed = value => draftChange(value);
+  const pending = value => draftChange(value, '待确认');
+  review.innerHTML = `
+    <header class="full-draft-header">
+      <div><p class="doc-label">${template} 章节结构 · 草案 v0.1</p><h1>车载冰箱产品标准草案</h1><p>基于“${source}”与参考模板生成，以下为完整可审阅内容。</p></div>
+      <span class="status amber">9 项关键参数已标注</span>
+    </header>
+    <div class="draft-review-legend"><span><i></i>黄色：研发输入映射 / 需确认参数</span><span><b></b>未标注内容：沿用参考模板的章节结构</span></div>
+    <article class="draft-document-body">
+      <section data-draft-section="preface"><h2>前言</h2><p>本文件按照 GB/T 1.1—2020《标准化工作导则 第 1 部分：标准化文件的结构和起草规则》的规定起草。本演示稿由车载冰箱研发技术要求和参考模板自动整理形成，后续由标准化工程师确认。</p></section>
+      <section data-draft-section="scope"><h2>1 范围</h2><p>本文件规定了车载冰箱的术语和定义、技术要求、试验方法、检验规则及标志、包装、运输和贮存。</p><p>本文件适用于压缩式制冷的车载冰箱，以下简称“冰箱”。</p></section>
+      <section data-draft-section="references"><h2>2 规范性引用文件</h2><p>下列文件中的内容通过文中的规范性引用而构成本文件必不可少的条款。GB/T 2423.10、GB/T 8059、GB/T 18655、GB/T 28046、QC/T 413、QC/T 29106 等文件适用于本文件。</p></section>
+      <section data-draft-section="terms"><h2>3 术语和定义</h2><h3>3.1 车载冰箱</h3><p>由一个或多个间室组成且间室能够控制温度，具有适合车用的容积和结构，以自然对流或强制对流方式获取冷量的隔热箱体。</p><h3>3.2 保温时间</h3><p>冰箱制冷系统空载运行中断后，箱内几何中心温度从 0 ℃ 回升到 20 ℃ 所需要的时间。</p></section>
+      <section data-draft-section="process"><h2>4 技术要求</h2><h3>4.1 一般要求</h3><p>冰箱应符合本文件要求，并按照经规定程序批准的产品图样和技术文件进行制造。标志、标签应清晰、完整、永久。</p><h3>4.2 使用环境和温度范围</h3><p>冰箱在车内使用环境下，储藏温度设定范围应为 ${changed('-18 ℃ 至 10 ℃')}；产品应满足车用低温、高温和温度循环环境适应性要求。</p><h3>4.3 供电与低压保护</h3><p>标称电压为 12 V 时，工作电压范围应为 ${changed('DC 10.8 V 至 16 V')}；标称电压为 24 V 时，工作电压范围应为 ${changed('DC 21.6 V 至 32 V')}。低压保护启动阈值应为 ${pending('10.8 V ±0.3 V')}。</p><h3>4.4 容积和机械耐久性</h3><p>冰箱总容积的实测值应不小于标称值的 97%。经过 10 000 次开合或抽拉测试后，外门、盖或抽屉应无变形、脱落、裂纹和阻滞现象。</p><h3 data-draft-section="safety">4.6 制冷性能</h3><p>在环境温度 32 ℃、相对湿度 45%～75% 条件下，冰箱空载运行，箱内几何中心温度从 32 ℃ 达到 0 ℃ 的时间应不大于 ${changed('90 min')}。冰箱达到设定温度后，温控偏差应不大于 ${changed('±2 ℃')}，温度波动应不大于 ${changed('4 ℃')}。</p><h3>4.7 能耗与噪声</h3><p>在额定工况下，日耗电量应不大于 ${changed('0.55 kWh/24 h')}，噪声值应不大于 ${changed('48 dB(A)')}。</p><h3 data-draft-section="performance">4.15 电磁兼容性能</h3><p>冰箱的传导发射、电压瞬态发射、瞬态传导抗扰性、电磁辐射抗扰性和静电放电应满足相关标准规定的等级要求。</p></section>
+      <section data-draft-section="conditions"><h2>5 试验方法</h2><p>如未标明特殊要求，所有试验均在环境温度 23 ℃±5 ℃、相对湿度 45%～75%、大气压力 86 kPa～106 kPa 条件下进行。</p><h3>5.6 制冷性能试验</h3><p>储藏温度试验应按照附录 A 进行，记录箱内温度达到设定温度所需时间、温控偏差和温度波动。试验电压应覆盖本文件 4.3 规定的工作电压范围。</p></section>
+      <section data-draft-section="organization"><h2>6 检验规则</h2><p>冰箱须经制造厂质量检验部门检验合格后方能出厂，并附有质量检验合格证、使用说明书、保修单和装箱清单等。</p><p>型式检验样品应从出厂检验合格的同批产品中随机抽样，抽样数量为 ${pending('3 台')}。</p></section>
+      <section data-draft-section="requirements"><h2>7 标志、包装、运输和贮存</h2><p>每台冰箱应在适当和明显位置设置耐久性的铭牌和电路图，铭牌应清晰标出产品名称、型号、总容积、额定电压、额定功率或电流、耗电量、制冷剂、制造商、制造日期和编号、净重等内容。</p><p>冰箱的包装、运输、贮存和保管应符合 QC/T 413 的规定。</p></section>
+      <section data-draft-section="appendix"><h2>附录 A（规范性）冰箱储藏温度试验方法</h2><p>在环境温度 32 ℃、相对湿度 45%～75% 条件下进行储藏温度试验。温度传感器布置在储藏室代表性位置，分别记录上部、中部和下部测点温度。</p><h2>附录 B（资料性）气味性试验方法</h2><p>冰箱使用的非金属材料和整机气味性试验应在规定时间内完成。样品在运输过程中应包装完好，所用包装材料不得破损且不得产生二次污染。</p></section>
+    </article>`;
+}
+
 function moduleOneMarkdownHtml(markdown) {
   const lines = String(markdown || '').split(/\r?\n/);
   const output = [];
@@ -636,6 +666,9 @@ function failModuleOneGenerationProgress(error) {
 
 function enterModuleOneReview() {
   setModuleOneMode('editor');
+  renderModuleOneFullDraftReview();
+  document.querySelector('#moduleOneFullDraftReview').classList.remove('hidden');
+  document.querySelector('#chapterEditPanel').classList.add('hidden');
   document.querySelector('#editorSectionLabel').textContent = (moduleOneTemplateItem?.title || '参考模板') + ' · 草案 v0.1';
   document.querySelector('#editorSectionTitle').textContent = '标准草案审阅与条款协同';
   document.querySelector('#clauseEditor').value = moduleOneDrafts.standardDraft || '';
@@ -670,17 +703,10 @@ async function generateModuleOneDrafts() {
     document.querySelector('#moduleOneOutput').classList.remove('hidden');
     renderModuleOneOutput();
     await finishModuleOneGenerationProgress();
-    if (moduleOneBilingualReady) {
-      setModuleOneMode('bilingual');
-      setFlowStage(2);
-      document.querySelector('#moduleOneBilingualWorkbench').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      notify('已生成草案，并同步生成车载冰箱中英对照稿');
-      return;
-    }
     enterModuleOneReview();
     setFlowStage(2);
     document.querySelector('#clauseEditorWorkbench').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    notify(result.mode === 'llm' ? 'LLM 已生成草案' : '已生成演示草案');
+    notify(moduleOneBilingualReady ? '已生成草案和中英对照稿' : (result.mode === 'llm' ? 'LLM 已生成草案' : '已生成演示草案'));
   } catch (error) {
     failModuleOneGenerationProgress(error);
     notify(error.message);
@@ -741,6 +767,17 @@ function renderEditorSection(sectionId) {
   if (!section) return;
   activeEditorSection = sectionId;
   document.querySelectorAll('[data-editor-section]').forEach(button => button.classList.toggle('active', button.dataset.editorSection === sectionId));
+  const review = document.querySelector('#moduleOneFullDraftReview');
+  if (review?.children.length) {
+    const target = review.querySelector('[data-draft-section="' + sectionId + '"]');
+    review.querySelectorAll('.draft-section-current').forEach(item => item.classList.remove('draft-section-current'));
+    const sectionTarget = target?.closest('section');
+    if (sectionTarget) {
+      sectionTarget.classList.add('draft-section-current');
+      sectionTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
   document.querySelector('#editorSectionLabel').textContent = section.label;
   document.querySelector('#editorSectionTitle').textContent = section.title;
   const editor = document.querySelector('#clauseEditor');

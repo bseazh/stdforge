@@ -107,6 +107,27 @@ dialog { width:min(560px,calc(100% - 30px)); padding:0; border:0; border-radius:
 @media (max-width:1100px) { .editor-layout.review-pane-hidden { grid-template-columns:185px minmax(0,1fr); } }
 @media (max-width:760px) { .editor-layout.review-pane-hidden { grid-template-columns:1fr; } }
 
+/* Full standard review: reference-template structure stays neutral; mapped data is explicit. */
+.full-draft-header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding-bottom:17px; border-bottom:2px solid #244b49; }
+.full-draft-header h1 { margin:0; color:#21383f; font-size:24px; line-height:1.35; }
+.full-draft-header p:not(.doc-label) { margin:6px 0 0; color:#63757d; font-size:12px; line-height:1.6; }
+.full-draft-header .status { flex:0 0 auto; margin-top:5px; }
+.draft-review-legend { display:flex; flex-wrap:wrap; gap:15px; margin:16px 0 20px; color:#61737a; font-size:11px; }
+.draft-review-legend span { display:flex; align-items:center; gap:6px; }
+.draft-review-legend i { display:inline-block; width:18px; height:12px; border-bottom:2px solid #d3a126; background:#fff2b8; }
+.draft-review-legend b { display:inline-block; width:18px; height:12px; border:1px solid #a8cfca; background:#f7fbfa; }
+.draft-document-body { color:#293a42; font-family:Georgia,"Noto Serif SC","Songti SC",serif; font-size:14px; line-height:2; }
+.draft-document-body section { scroll-margin-top:24px; padding:10px 12px 14px; border-left:2px solid transparent; transition:background .18s ease,border-color .18s ease; }
+.draft-document-body section + section { margin-top:8px; border-top:1px solid #e6eded; }
+.draft-document-body section.draft-section-current { border-left-color:#168171; background:#f4faf8; }
+.draft-document-body h2 { margin:15px 0 8px; color:#243e44; font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:17px; }
+.draft-document-body h3 { margin:15px 0 5px; color:#39555a; font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:14px; }
+.draft-document-body p { margin:0 0 8px; text-align:justify; }
+.draft-change { display:inline-flex; align-items:baseline; gap:4px; margin:0 2px; padding:0 3px 1px; border-bottom:2px solid #d4a127; background:#fff2b8; color:#4c3b08; font-weight:700; line-height:1.55; }
+.draft-change span { display:inline-block; transform:translateY(-1px); padding:1px 4px; border:1px solid #e6c766; background:#fff9da; color:#99731b; font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:9px; font-weight:700; line-height:1.25; white-space:nowrap; }
+.chapter-edit-panel { margin-top:20px; padding-top:17px; border-top:1px solid #e1e9e9; }
+@media (max-width:760px) { .full-draft-header { display:block; }.full-draft-header .status { display:inline-flex; margin-top:10px; }.draft-document-body { font-size:13px; line-height:1.85; }.draft-document-body section { padding-left:8px; padding-right:4px; } }
+
 /* Shows the real generation request as readable chapter-level progress. */
 .module-one-generation-dialog { box-sizing:border-box; width:100%; max-height:calc(100vh - 32px); padding:24px; overflow:auto; background:#fff; }
 #moduleOneGenerationDialog { width:min(920px,calc(100vw - 32px)); max-width:none; }
