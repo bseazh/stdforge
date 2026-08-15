@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="StdForge SMTP 邮件通知连通性测试" />
+    <meta name="description" content="StdForge SMTP 邮件通知测试" />
     <title>StdForge | 邮件通知测试</title>
     <link rel="stylesheet" href="email-test.css" />
   </head>
@@ -17,7 +17,12 @@
       <section class="intro">
         <p>系统运维</p>
         <h1>邮件通知测试</h1>
-        <span>检查 SMTP 服务状态，并向服务端预配置的测试收件人发送一封固定模板邮件。</span>
+        <span>选择测试收件人，验证 SMTP 发送与投递状态。</span>
+      </section>
+
+      <section class="access-panel" aria-label="测试授权">
+        <div><p>测试授权</p><strong>管理验证码</strong></div>
+        <label class="access-input"><span class="sr-only">管理验证码</span><input id="accessToken" type="password" autocomplete="off" placeholder="输入管理验证码" /><button id="unlockRecipients" type="button">解锁收件人</button></label>
       </section>
 
       <section class="test-grid" aria-label="SMTP 测试控制台">
@@ -25,23 +30,32 @@
           <div class="panel-heading"><div><p>服务状态</p><h2>SMTP 配置</h2></div><button id="refreshStatus" class="icon-button" aria-label="刷新服务状态" title="刷新服务状态">↻</button></div>
           <div class="status-result loading" id="statusResult" aria-live="polite"><span class="status-dot"></span><div><strong>正在检测服务端配置</strong><small>请求 GET /api/health</small></div></div>
           <dl class="details-list">
-            <div><dt>发件通道</dt><dd>仅服务端环境变量</dd></div>
-            <div><dt>测试收件人</dt><dd>仅服务端预配置</dd></div>
-            <div><dt>发送保护</dt><dd>固定收件人、服务端限频</dd></div>
+            <div><dt>发件通道</dt><dd>服务端环境变量</dd></div>
+            <div><dt>收件人状态</dt><dd id="recipientStatus">等待授权</dd></div>
+            <div><dt>发送保护</dt><dd>授权、白名单、限频</dd></div>
           </dl>
         </section>
 
         <section class="send-panel">
           <div class="panel-heading"><div><p>发送操作</p><h2>连通性测试</h2></div><span class="tag">SMTP</span></div>
-          <div class="mail-preview"><span class="mail-icon">@</span><div><strong>[StdForge] SMTP 邮件连通性测试</strong><small>固定模板，不包含业务数据</small></div></div>
+          <div class="mail-preview"><span class="mail-icon">@</span><div><strong>[StdForge] SMTP 邮件连通性测试</strong><small id="selectedSummary">未选择收件人</small></div></div>
           <button id="sendTest" class="send-button" disabled>发送测试邮件</button>
-          <p class="hint" id="sendHint">等待服务端状态检查完成。</p>
+          <p class="hint" id="sendHint">请先完成测试授权并选择收件人。</p>
         </section>
+      </section>
+
+      <section class="recipients-panel">
+        <div class="panel-heading"><div><p>测试收件人</p><h2>收件人列表</h2></div><span id="recipientLimit">最多 10 个</span></div>
+        <div id="recipientList" class="recipient-list" aria-live="polite"><p class="empty-list">输入管理验证码后加载收件人。</p></div>
+        <form id="addRecipientForm" class="add-recipient">
+          <label><span class="sr-only">新增测试收件人</span><input id="newRecipient" type="email" autocomplete="email" placeholder="新增测试收件人邮箱" disabled /></label>
+          <button type="submit" id="addRecipient" disabled>添加</button>
+        </form>
       </section>
 
       <section class="activity-panel">
         <div class="panel-heading"><div><p>本次会话</p><h2>测试记录</h2></div><span id="requestPath">POST /api/notifications/test</span></div>
-        <ol id="activityLog" class="activity-log" aria-live="polite"><li class="pending"><span></span><div><strong>等待执行测试</strong><small>页面加载后将自动检测 SMTP 状态。</small></div></li></ol>
+        <ol id="activityLog" class="activity-log" aria-live="polite"><li class="pending"><span></span><div><strong>等待执行测试</strong><small>完成授权后可管理测试收件人。</small></div></li></ol>
       </section>
     </main>
     <script src="email-test.js"></script>

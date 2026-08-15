@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { parsePdf, ResultDownloadError } from './mineru-client.mjs';
 import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
@@ -39,6 +39,9 @@ const notificationRecipients = (process.env.NOTIFICATION_RECIPIENTS || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
+const notificationTestAccessToken = process.env.NOTIFICATION_TEST_ACCESS_TOKEN;
+const notificationTestRecipientLimit = Math.max(1, Math.min(20, Number(process.env.NOTIFICATION_TEST_RECIPIENT_LIMIT || 10)));
+const notificationTestRecipientsPath = join(runtimeRoot, 'notification-test-recipients.json');
 const notificationCooldownMs = Math.max(0, Number(process.env.NOTIFICATION_COOLDOWN_MS || 60_000));
 const smtpConfigured = Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom && notificationRecipients.length);
 const transporter = smtpConfigured
@@ -97,6 +100,41 @@ function publicJob(job) {
   };
 }
 
+function normalizeEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+function hasTestManagementAccess(request) {
+  const suppliedToken = request.headers['x-stdforge-test-token'];
+  if (!notificationTestAccessToken || typeof suppliedToken !== 'string') return false;
+  const expected = Buffer.from(notificationTestAccessToken);
+  const supplied = Buffer.from(suppliedToken);
+  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
+}
+
+async function readAddedTestRecipients() {
+  try {
+    const stored = JSON.parse(await readFile(notificationTestRecipientsPath, 'utf8'));
+    return Array.isArray(stored) ? stored.map(normalizeEmail).filter(Boolean) : [];
+  } catch { return []; }
+}
+
+async function getTestRecipients() {
+  return [...new Set([...notificationRecipients.map(normalizeEmail).filter(Boolean), ...await readAddedTestRecipients()])];
+}
+
+async function addTestRecipient(value) {
+  const email = normalizeEmail(value);
+  if (!email) throw new Error('请输入有效的邮箱地址');
+  const recipients = await getTestRecipients();
+  if (recipients.includes(email)) return recipients;
+  if (recipients.length >= notificationTestRecipientLimit) throw new Error(`测试收件人最多允许 ${notificationTestRecipientLimit} 个`);
+  const added = await readAddedTestRecipients();
+  await writeFile(notificationTestRecipientsPath, `${JSON.stringify([...new Set([...added, email])], null, 2)}\n`, { mode: 0o600 });
+  return [...recipients, email];
+}
+
 async function sendReviewNotification() {
   if (!transporter) throw new Error('服务端未配置 SMTP 邮件通知');
   const now = new Date();
@@ -128,12 +166,12 @@ async function sendReviewNotification() {
   return { messageId: sent.messageId, accepted: sent.accepted?.length || 0 };
 }
 
-async function sendSmtpTestNotification() {
+async function sendSmtpTestNotification(recipients) {
   if (!transporter) throw new Error('服务端未配置 SMTP 邮件通知');
   const now = new Date();
   const sent = await transporter.sendMail({
     from: smtpFrom,
-    to: notificationRecipients,
+    to: recipients,
     subject: '[StdForge] SMTP 邮件连通性测试',
     text: [
       '这是一封由 StdForge 邮件通知测试页发出的连通性测试邮件。',
@@ -188,18 +226,48 @@ function sendDownload(response, path, downloadName, contentType) {
 
 async function handleApi(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') {
-    return json(response, 200, { ok: true, mineruConfigured: Boolean(token), feishuConfigured: Boolean(feishuAppId && feishuAppSecret), smtpConfigured });
+    return json(response, 200, {
+      ok: true,
+      mineruConfigured: Boolean(token),
+      feishuConfigured: Boolean(feishuAppId && feishuAppSecret),
+      smtpConfigured,
+      smtpTestManagementConfigured: Boolean(notificationTestAccessToken)
+    });
+  }
+  if (request.method === 'GET' && url.pathname === '/api/notifications/test-recipients') {
+    if (!notificationTestAccessToken) return json(response, 503, { error: '服务端未配置邮件测试授权码' });
+    if (!hasTestManagementAccess(request)) return json(response, 401, { error: '测试授权码无效' });
+    return json(response, 200, { recipients: await getTestRecipients(), limit: notificationTestRecipientLimit });
+  }
+  if (request.method === 'POST' && url.pathname === '/api/notifications/test-recipients') {
+    if (!notificationTestAccessToken) return json(response, 503, { error: '服务端未配置邮件测试授权码' });
+    if (!hasTestManagementAccess(request)) return json(response, 401, { error: '测试授权码无效' });
+    try {
+      const { email } = await readJsonRequest(request);
+      return json(response, 200, { recipients: await addTestRecipient(email), limit: notificationTestRecipientLimit });
+    } catch (error) {
+      return json(response, 400, { error: error.message });
+    }
   }
   if (request.method === 'POST' && ['/api/notifications/review', '/api/notifications/test'].includes(url.pathname)) {
     if (!smtpConfigured) return json(response, 503, { error: '服务端未配置 SMTP 邮件通知' });
+    const isTestRequest = url.pathname.endsWith('/test');
+    if (isTestRequest && !notificationTestAccessToken) return json(response, 503, { error: '服务端未配置邮件测试授权码' });
+    if (isTestRequest && !hasTestManagementAccess(request)) return json(response, 401, { error: '测试授权码无效' });
     const elapsed = Date.now() - lastNotificationAt;
     if (elapsed < notificationCooldownMs) {
       return json(response, 429, { error: '通知发送过于频繁，请稍后重试', retryAfterSeconds: Math.ceil((notificationCooldownMs - elapsed) / 1000) });
     }
     try {
-      await readRequestBody(request);
-      const result = url.pathname.endsWith('/test')
-        ? await sendSmtpTestNotification()
+      const requestBody = await readJsonRequest(request);
+      const recipients = isTestRequest ? [...new Set((requestBody.recipients || []).map(normalizeEmail).filter(Boolean))] : notificationRecipients;
+      if (isTestRequest) {
+        const allowedRecipients = await getTestRecipients();
+        if (!recipients.length) return json(response, 400, { error: '请至少选择一个测试收件人' });
+        if (recipients.some(email => !allowedRecipients.includes(email))) return json(response, 400, { error: '所选邮箱不在测试收件人列表中' });
+      }
+      const result = isTestRequest
+        ? await sendSmtpTestNotification(recipients)
         : await sendReviewNotification();
       lastNotificationAt = Date.now();
       return json(response, 200, { ok: true, accepted: result.accepted });

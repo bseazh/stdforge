@@ -103,6 +103,7 @@ npm run start:parser
 | `MINERU_TOKEN` | 调用 MinerU 解析 PDF | 仅 PDF 解析需要 |
 | `SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASS` | 发起评审的服务端邮件通知 | 仅邮件通知需要 |
 | `SMTP_FROM`、`NOTIFICATION_RECIPIENTS` | 邮件发件人和固定评审组 | 仅邮件通知需要 |
+| `NOTIFICATION_TEST_ACCESS_TOKEN` | 解锁测试收件人查看、添加、勾选和发信 | 邮件测试页需要 |
 | `FEISHU_APP_ID`、`FEISHU_APP_SECRET` | 将解析后的 Markdown 追加到飞书文档 | 仅飞书同步需要 |
 
 建议将 SMTP 配置保存在 `.env.smtp.local`，将 MinerU / 飞书配置保存在 `.env.local`。二者均已被 Git 忽略。
@@ -129,7 +130,8 @@ node scripts/build-standard-data.mjs \
 | `GET /api/health` | 返回 PDF 解析、SMTP 与飞书配置状态。 |
 | `POST /api/parse` | 上传单个 PDF（演示限制 30 MB）并创建 MinerU 解析任务。 |
 | `POST /api/notifications/review` | 向服务端预配置的评审组发送评审通知。 |
-| `POST /api/notifications/test` | 发送固定模板的 SMTP 连通性测试邮件。 |
+| `GET/POST /api/notifications/test-recipients` | 读取或添加受测试授权码保护的收件人。 |
+| `POST /api/notifications/test` | 向已勾选、已授权的测试收件人发送固定模板邮件。 |
 
 后续业务 API 契约见 [PRD](docs/PRD.md)，包括标准导入、条款修订、审核、来源采集与政策解读等接口。
 
