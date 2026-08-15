@@ -27,7 +27,8 @@
 | 能力模块 | 当前状态 | 现阶段可完成的任务 |
 | --- | --- | --- |
 | 标准协同工作台 | 可演示 | 展示标准概览、条款树、审核问题、AI 修改建议、修订记录与评审状态。 |
-| 标准文件解析 | 可配置运行 | 上传 PDF，调用 MinerU 解析，查看 Markdown / 源码 / ZIP 结果并下载。 |
+| 文档解析与知识库 | 可配置运行 | PDF 经 MinerU 转 Markdown 后自动写入 KB；DOCX、TXT、Markdown、CSV 可直接转文本入库并建立检索索引。 |
+| 知识问答 | 可配置运行 | 按标准编写、标准、政策三分区检索；配置 LLM 后生成带片段引用的受控回答。 |
 | 条款级审核 | 演示实现 | 展示规范性用语、条件完整性、术语一致性、引用文件等问题与处置状态。 |
 | 协同评审通知 | 可配置运行 | 在服务端预设 SMTP 后，发起评审可通知固定评审组；浏览器不能指定收件人。 |
 | 飞书文档同步 | 可配置运行 | 解析完成后，将 Markdown 以追加方式同步到有编辑权限的飞书文档。 |
@@ -94,6 +95,8 @@ npm run start:parser
 
 默认访问地址为 `http://127.0.0.1:4173`。PDF 解析页面位于 `pdf-parser/index.html`；独立邮件连通性测试页为 `email-test.html`。
 
+知识库管理与问答页面位于 `KB/index.html`。线上发布后可通过 `https://stdforge.hehaizhao.site/KB/` 使用；PDF 会在 MinerU 解析完成后自动入库，其他支持的文档格式可直接转换为文本并建立索引。
+
 ## 配置与密钥
 
 所有密钥只能通过本地忽略文件或部署平台 Secret 注入，**禁止**写入前端、Kubernetes ConfigMap 或 Git 仓库。
@@ -101,6 +104,7 @@ npm run start:parser
 | 配置项 | 用途 | 是否必需 |
 | --- | --- | --- |
 | `MINERU_TOKEN` | 调用 MinerU 解析 PDF | 仅 PDF 解析需要 |
+| `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL` | OpenAI 兼容 LLM 的问答生成 | 可选；未配置时仍可检索并返回原文片段 |
 | `SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASS` | 发起评审的服务端邮件通知 | 仅邮件通知需要 |
 | `SMTP_FROM`、`NOTIFICATION_RECIPIENTS` | 邮件发件人和固定评审组 | 仅邮件通知需要 |
 | `NOTIFICATION_TEST_ACCESS_TOKEN` | 解锁测试收件人查看、添加、勾选和发信 | 邮件测试页需要 |
@@ -129,6 +133,12 @@ node scripts/build-standard-data.mjs \
 | --- | --- |
 | `GET /api/health` | 返回 PDF 解析、SMTP 与飞书配置状态。 |
 | `POST /api/parse` | 上传单个 PDF（演示限制 30 MB）并创建 MinerU 解析任务。 |
+| `GET /api/kb` | 返回 KB 三分区与文档、分块统计。 |
+| `GET /api/kb/documents` | 列出已入库文档，可用 `module` 筛选。 |
+| `POST /api/kb/imports` | 上传 DOCX、TXT、Markdown 或 CSV 并转换为知识库文本。 |
+| `POST /api/kb/search` | 在知识库文本中检索，返回可定位片段。 |
+| `POST /api/kb/ask` | 先检索再生成带引用答案；LLM 未配置时回退为原文依据。 |
+| `POST /api/kb/reindex` | 基于持久化文本重建全部知识库索引。 |
 | `POST /api/notifications/review` | 向服务端预配置的评审组发送评审通知。 |
 | `GET/POST /api/notifications/test-recipients` | 读取或添加受测试授权码保护的收件人。 |
 | `POST /api/notifications/test` | 向已勾选、已授权的测试收件人发送固定模板邮件。 |
@@ -141,6 +151,7 @@ node scripts/build-standard-data.mjs \
 .
 ├── index.html / app.js / styles.css  # 标准协同工作台
 ├── pdf-parser/                       # PDF 上传、MinerU 解析与飞书同步服务
+├── KB/                                # 标准编写、标准、政策三分区的持久化文本与索引
 ├── data/standard-data.js             # 页面演示用标准条款摘要
 ├── scripts/                          # MinerU 解析与数据构建脚本
 ├── deploy/kubernetes.yaml            # 线上静态服务与 API 反向代理配置
@@ -152,9 +163,11 @@ node scripts/build-standard-data.mjs \
 ## 当前架构
 
 ```text
-公开标准元数据 / 合法上传 PDF
+PDF / DOCX / TXT / Markdown / CSV
         │
-        ├── MinerU 解析服务 ──> Markdown、结构化结果、ZIP
+        ├── MinerU 解析服务 ──> PDF Markdown、结构化结果、ZIP
+        ├── 文本提取服务 ──> DOCX / TXT / Markdown / CSV 文本
+        ├── KB 三分区 ──> 哈希去重、分块索引、检索依据
         └── 标准协同工作台 ──> 条款树、审核问题、修订与评审
                                       │
                           SMTP 固定评审组通知 / 飞书文档追加
@@ -172,7 +185,7 @@ node scripts/build-standard-data.mjs \
 | P0 | 用数据库持久化标准、条款、审核问题、修订、评论和通知事件。 |
 | P1 | 增加 GB/T 1.1 规则包、术语库和引用有效性校验。 |
 | P1 | 接入 Yjs / ONLYOFFICE，实现真实多人协作与修订。 |
-| P2 | 加入向量检索、标准对比、企业关系图谱与角色化推送。 |
+| P2 | 用受控向量数据库替换当前轻量关键词索引，并加入标准对比、企业关系图谱和角色化推送。 |
 
 ## 数据与合规原则
 

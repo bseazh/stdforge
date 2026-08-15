@@ -20,6 +20,7 @@
       <section class="toolbar">
         <div><p>文档处理</p><h1>PDF 结构化解析</h1></div>
         <div class="toolbar-actions">
+          <label class="kb-module"><span>入库分区</span><select id="kbModule" aria-label="知识库分区"><option value="standard-drafting">标准编写</option><option value="standards" selected>标准</option><option value="policies">政策</option></select></label>
           <button class="button secondary" id="resetButton" disabled><i data-lucide="rotate-ccw"></i>重新上传</button>
           <button class="button primary" id="parseButton" disabled><i data-lucide="scan-text"></i>开始解析</button>
         </div>
@@ -29,18 +30,18 @@
         <div class="source-pane">
           <div class="pane-heading"><div><span>01</span><strong>原始文档</strong></div><span class="file-state" id="fileState">未选择</span></div>
           <label class="dropzone" id="dropzone" for="fileInput">
-            <input id="fileInput" type="file" accept="application/pdf,.pdf" />
+            <input id="fileInput" type="file" accept="application/pdf,.pdf,.docx,.txt,.md,.markdown,.csv,text/plain,text/markdown,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
             <span class="upload-icon"><i data-lucide="file-up"></i></span>
-            <strong>选择或拖入 PDF</strong>
-            <small>单个文件，最大 30 MB</small>
+            <strong>选择或拖入文档</strong>
+            <small>PDF、DOCX、TXT、Markdown 或 CSV，最大 30 MB</small>
           </label>
           <div class="file-summary hidden" id="fileSummary">
-            <div class="pdf-badge">PDF</div>
+            <div class="pdf-badge" id="fileBadge">PDF</div>
             <div><strong id="fileName"></strong><small id="fileMeta"></small></div>
             <button class="icon-button" id="removeFile" aria-label="移除文件" title="移除文件"><i data-lucide="x"></i></button>
           </div>
           <div class="pdf-preview empty" id="previewContainer">
-            <div class="empty-preview"><i data-lucide="files"></i><span>PDF 预览</span></div>
+            <div class="empty-preview"><i data-lucide="files"></i><span id="previewMessage">PDF 预览</span></div>
             <iframe id="pdfPreview" title="PDF 原文预览"></iframe>
           </div>
         </div>
@@ -53,7 +54,7 @@
           <div class="progress-panel hidden" id="progressPanel">
             <div class="progress-head"><span class="spinner"></span><span><strong id="progressTitle">正在上传</strong><small id="progressMessage">任务准备中</small></span><b id="progressValue">0%</b></div>
             <div class="progress-track"><span id="progressBar"></span></div>
-            <div class="stages"><span class="active">上传</span><span>排队</span><span>解析</span><span>整理</span></div>
+            <div class="stages"><span class="active">上传</span><span>排队</span><span>解析</span><span>整理</span><span>索引</span></div>
           </div>
           <div class="result-empty" id="resultEmpty"><i data-lucide="text-search"></i><strong>等待解析结果</strong><span>上传 PDF 后开始解析</span></div>
           <article class="markdown-view hidden" id="renderedResult"></article>
@@ -63,7 +64,7 @@
       </section>
 
       <section class="download-bar hidden" id="downloadBar">
-        <div><i data-lucide="circle-check-big"></i><span><strong>文档解析完成</strong><small id="resultMeta">Markdown 已生成</small></span></div>
+          <div><i data-lucide="circle-check-big"></i><span><strong>文档解析完成</strong><small id="resultMeta">Markdown 已生成</small><small id="kbResult"></small></span></div>
         <div>
           <a class="button secondary" id="downloadOriginal"><i data-lucide="file-down"></i>原始 PDF</a>
           <a class="button secondary" id="downloadMarkdown"><i data-lucide="braces"></i>Markdown</a>

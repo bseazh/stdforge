@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="StdForge 知识库问答与文档管理" />
+    <title>知识库问答 | 条条是道</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="../index.html"><span class="brand-mark">SF</span><span><strong>条条是道</strong><small>知识库问答</small></span></a>
+      <nav class="header-nav" aria-label="页面导航"><a href="../index.html">工作台</a><a href="../pdf-parser/">文档解析</a><a class="active" href="./">知识库</a></nav>
+      <div class="server-state" id="serverState"><span></span><em>正在连接服务</em></div>
+    </header>
+
+    <main>
+      <section class="page-heading">
+        <div><p>知识库</p><h1>标准、编写材料与政策问答</h1></div>
+        <div class="stats" id="stats" aria-label="知识库统计"></div>
+      </section>
+
+      <section class="layout">
+        <section class="panel chat-panel" aria-labelledby="chatHeading">
+          <div class="panel-heading"><div><span class="index">01</span><h2 id="chatHeading">检索问答</h2></div><span class="model-state" id="modelState">检索模式</span></div>
+          <div class="answer empty" id="answer"><i data-lucide="messages-square"></i><strong>等待问题</strong><span>回答将基于已入库的原文片段生成</span></div>
+          <div class="citations hidden" id="citations"></div>
+          <form class="question-form" id="questionForm">
+            <label class="scope"><span>检索范围</span><select id="questionModule"><option value="">全部知识库</option><option value="standard-drafting">标准编写</option><option value="standards">标准</option><option value="policies">政策</option></select></label>
+            <textarea id="question" placeholder="输入关于标准、条款、公告或政策的问题" aria-label="知识库问题" required></textarea>
+            <button class="button primary" type="submit" id="askButton"><i data-lucide="send-horizontal"></i>提问</button>
+          </form>
+        </section>
+
+        <aside class="side-column">
+          <section class="panel upload-panel" aria-labelledby="uploadHeading">
+            <div class="panel-heading"><div><span class="index">02</span><h2 id="uploadHeading">文档入库</h2></div></div>
+            <label class="file-picker" for="fileInput"><input id="fileInput" type="file" accept="application/pdf,.pdf,.docx,.txt,.md,.markdown,.csv,text/plain,text/markdown,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /><i data-lucide="file-up"></i><span id="fileLabel">选择文档</span><small>PDF、DOCX、TXT、Markdown、CSV</small></label>
+            <div class="upload-controls"><label class="scope"><span>入库分区</span><select id="uploadModule"><option value="standard-drafting">标准编写</option><option value="standards" selected>标准</option><option value="policies">政策</option></select></label><button class="button primary" id="uploadButton" disabled><i data-lucide="database-zap"></i>入库</button></div>
+            <p class="upload-status" id="uploadStatus">文档会转换为可检索文本并更新索引。</p>
+          </section>
+
+          <section class="panel documents-panel" aria-labelledby="documentsHeading">
+            <div class="panel-heading"><div><span class="index">03</span><h2 id="documentsHeading">已入库文档</h2></div><button class="icon-button" id="refreshDocuments" title="刷新文档" aria-label="刷新文档"><i data-lucide="refresh-cw"></i></button></div>
+            <div class="document-list" id="documentList"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><i data-lucide="info"></i><span></span></div>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

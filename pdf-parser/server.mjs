@@ -2,13 +2,14 @@
 
 import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, resolve } from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { parsePdf, ResultDownloadError } from './mineru-client.mjs';
 import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
 import { createApprovalInstance, getApprovalInstance } from './feishu-approval-client.mjs';
+import { KnowledgeBase, knowledgeModules } from './kb-store.mjs';
 
 const root = resolve(import.meta.dirname);
 const runtimeRoot = join(root, '.runtime');
@@ -16,6 +17,7 @@ const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 const maxFileSize = 30 * 1024 * 1024;
 const jobs = new Map();
+const kb = new KnowledgeBase(join(root, '../KB'));
 
 await mkdir(runtimeRoot, { recursive: true });
 for (const envFile of ['.env.local', '.env.smtp.local']) {
@@ -27,7 +29,11 @@ for (const envFile of ['.env.local', '.env.smtp.local']) {
     }
   } catch { /* Local config files are optional; deployment normally uses environment variables. */ }
 }
+await kb.init();
 const token = process.env.MINERU_TOKEN;
+const llmBaseUrl = (process.env.LLM_BASE_URL || '').replace(/\/$/, '');
+const llmApiKey = process.env.LLM_API_KEY;
+const llmModel = process.env.LLM_MODEL;
 const feishuAppId = process.env.FEISHU_APP_ID;
 const feishuAppSecret = process.env.FEISHU_APP_SECRET;
 const feishuApprovalCode = process.env.FEISHU_APPROVAL_CODE;
@@ -71,12 +77,16 @@ function safeName(value) {
   return cleaned.toLowerCase().endsWith('.pdf') ? cleaned : `${cleaned}.pdf`;
 }
 
+function safeDocumentName(value) {
+  return basename(value || 'document.txt').replace(/[^\p{L}\p{N}_. -]/gu, '_');
+}
+
 async function readRequestBody(request) {
   const chunks = [];
   let total = 0;
   for await (const chunk of request) {
     total += chunk.length;
-    if (total > maxFileSize) throw new Error('PDF 文件不能超过 30 MB');
+    if (total > maxFileSize) throw new Error('文档不能超过 30 MB');
     chunks.push(chunk);
   }
   return Buffer.concat(chunks);
@@ -85,6 +95,67 @@ async function readRequestBody(request) {
 async function readJsonRequest(request) {
   const body = await readRequestBody(request);
   try { return JSON.parse(body.toString('utf8')); } catch { throw new Error('请求内容必须是 JSON'); }
+}
+
+function parseKbModule(value, fallback = 'standards') {
+  const module = value || fallback;
+  if (!knowledgeModules.includes(module)) throw new Error('知识库分区必须是 standard-drafting、standards 或 policies');
+  return module;
+}
+
+function publicDocument(document) {
+  const { chunks, ...rest } = document;
+  return { ...rest, chunkCount: chunks.length };
+}
+
+async function generateGroundedAnswer(question, hits) {
+  if (!hits.length) {
+    return {
+      mode: 'not-found',
+      answer: '知识库中没有找到能够支撑该问题的内容。请上传相关标准、编写材料或政策原文后再提问。'
+    };
+  }
+  const sources = hits.map((hit, index) => `【${index + 1}】${hit.title} / ${hit.heading || `片段 ${hit.chunk}`}\n${hit.text}`).join('\n\n');
+  if (!llmBaseUrl || !llmApiKey || !llmModel) {
+    return {
+      mode: 'extractive',
+      answer: `已检索到与“${question}”最相关的知识库内容。请结合以下引用片段核对；配置 LLM_BASE_URL、LLM_API_KEY 和 LLM_MODEL 后，可生成归纳回答。`
+    };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(`${llmBaseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${llmApiKey}` },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: llmModel,
+        temperature: 0.1,
+        messages: [
+          {
+            role: 'system',
+            content: '你是标准化知识库问答助手。只能依据提供的知识库片段作答，不能补充片段外事实。回答使用中文，结论后必须以 [1]、[2] 形式标注依据；资料不足时明确说明。'
+          },
+          { role: 'user', content: `问题：${question}\n\n知识库片段：\n${sources}` }
+        ]
+      })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error?.message || `LLM HTTP ${response.status}`);
+    const answer = body.choices?.[0]?.message?.content?.trim();
+    if (!answer) throw new Error('LLM 未返回可用回答');
+    return { mode: 'llm', answer };
+  } catch (error) {
+    console.error('KB LLM answer failed:', error.message);
+    return {
+      mode: 'extractive',
+      answer: `已完成知识库检索，但 LLM 生成暂时不可用。请依据下方引用片段核对答案。`
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function publicJob(job) {
@@ -101,7 +172,8 @@ function publicJob(job) {
     failureStage: job.failureStage,
     retryable: job.retryable === true,
     feishuSync: job.feishuSync,
-    feishuApproval: job.feishuApproval
+    feishuApproval: job.feishuApproval,
+    kb: job.kb
   };
 }
 
@@ -118,15 +190,25 @@ function hasTestManagementAccess(request) {
   return expected.length === supplied.length && timingSafeEqual(expected, supplied);
 }
 
-async function readAddedTestRecipients() {
+async function readTestRecipientOverrides() {
   try {
     const stored = JSON.parse(await readFile(notificationTestRecipientsPath, 'utf8'));
-    return Array.isArray(stored) ? stored.map(normalizeEmail).filter(Boolean) : [];
-  } catch { return []; }
+    if (Array.isArray(stored)) return { added: stored.map(normalizeEmail).filter(Boolean), removed: [] };
+    return {
+      added: Array.isArray(stored.added) ? stored.added.map(normalizeEmail).filter(Boolean) : [],
+      removed: Array.isArray(stored.removed) ? stored.removed.map(normalizeEmail).filter(Boolean) : []
+    };
+  } catch { return { added: [], removed: [] }; }
+}
+
+async function writeTestRecipientOverrides(overrides) {
+  await writeFile(notificationTestRecipientsPath, `${JSON.stringify(overrides, null, 2)}\n`, { mode: 0o600 });
 }
 
 async function getTestRecipients() {
-  return [...new Set([...notificationRecipients.map(normalizeEmail).filter(Boolean), ...await readAddedTestRecipients()])];
+  const overrides = await readTestRecipientOverrides();
+  const removed = new Set(overrides.removed);
+  return [...new Set([...notificationRecipients.map(normalizeEmail).filter(Boolean), ...overrides.added])].filter(email => !removed.has(email));
 }
 
 async function addTestRecipient(value) {
@@ -135,9 +217,23 @@ async function addTestRecipient(value) {
   const recipients = await getTestRecipients();
   if (recipients.includes(email)) return recipients;
   if (recipients.length >= notificationTestRecipientLimit) throw new Error(`测试收件人最多允许 ${notificationTestRecipientLimit} 个`);
-  const added = await readAddedTestRecipients();
-  await writeFile(notificationTestRecipientsPath, `${JSON.stringify([...new Set([...added, email])], null, 2)}\n`, { mode: 0o600 });
+  const overrides = await readTestRecipientOverrides();
+  overrides.added = [...new Set([...overrides.added, email])];
+  overrides.removed = overrides.removed.filter(value => value !== email);
+  await writeTestRecipientOverrides(overrides);
   return [...recipients, email];
+}
+
+async function removeTestRecipient(value) {
+  const email = normalizeEmail(value);
+  if (!email) throw new Error('测试收件人地址无效');
+  const recipients = await getTestRecipients();
+  if (!recipients.includes(email)) return recipients;
+  const overrides = await readTestRecipientOverrides();
+  overrides.added = overrides.added.filter(value => value !== email);
+  if (notificationRecipients.map(normalizeEmail).includes(email)) overrides.removed = [...new Set([...overrides.removed, email])];
+  await writeTestRecipientOverrides(overrides);
+  return getTestRecipients();
 }
 
 async function sendReviewNotification() {
@@ -202,7 +298,20 @@ async function startParse(job) {
       outputDir: job.outputDir,
       onStatus: update => Object.assign(job, update)
     });
-    Object.assign(job, result, { state: 'done', message: '解析完成' });
+    Object.assign(job, result, { state: 'indexing', message: '解析完成，正在写入知识库索引' });
+    try {
+      const indexed = await kb.upsertText({
+        module: job.kbModule,
+        fileName: job.fileName,
+        text: result.markdown,
+        source: { type: 'mineru-pdf', title: job.fileName.replace(/\.pdf$/i, '') }
+      });
+      job.kb = { document: publicDocument(indexed.document), reused: indexed.reused, indexedAt: new Date().toISOString() };
+      Object.assign(job, { state: 'done', message: indexed.reused ? '解析完成，知识库已有相同文本' : '解析完成，知识库索引已更新' });
+    } catch (indexError) {
+      console.error('KB indexing failed:', indexError.message);
+      Object.assign(job, { state: 'done', message: '解析完成，但知识库更新失败', kb: { error: indexError.message } });
+    }
   } catch (error) {
     const resultDownloadFailed = error instanceof ResultDownloadError;
     if (resultDownloadFailed) {
@@ -234,15 +343,78 @@ async function handleApi(request, response, url) {
     return json(response, 200, {
       ok: true,
       mineruConfigured: Boolean(token),
+      llmConfigured: Boolean(llmBaseUrl && llmApiKey && llmModel),
+      knowledgeBase: kb.stats(),
       feishuConfigured: Boolean(feishuAppId && feishuAppSecret),
       feishuApprovalConfigured: Boolean(feishuApprovalCode && feishuInitiatorOpenId),
       smtpConfigured,
       smtpTestManagementConfigured: Boolean(notificationTestAccessToken)
     });
   }
+  if (request.method === 'GET' && url.pathname === '/api/kb') {
+    return json(response, 200, { ok: true, modules: knowledgeModules, stats: kb.stats() });
+  }
+  if (request.method === 'GET' && url.pathname === '/api/kb/documents') {
+    try {
+      const module = url.searchParams.get('module') || undefined;
+      return json(response, 200, { documents: kb.list({ module, limit: Number(url.searchParams.get('limit') || 100) }) });
+    } catch (error) {
+      return json(response, 400, { error: error.message });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/kb/imports') {
+    let stagingPath;
+    try {
+      const module = parseKbModule(url.searchParams.get('module'));
+      const fileName = safeDocumentName(url.searchParams.get('filename'));
+      const extension = extname(fileName).toLowerCase();
+      if (!['.txt', '.md', '.markdown', '.csv', '.docx'].includes(extension)) {
+        return json(response, 415, { error: '知识库直接上传支持 TXT、Markdown、CSV 和 DOCX；PDF 请使用 /api/parse 解析后自动入库' });
+      }
+      const body = await readRequestBody(request);
+      if (!body.length) return json(response, 400, { error: '上传文件为空' });
+      const importId = randomUUID();
+      stagingPath = join(runtimeRoot, `${importId}-${fileName}`);
+      await writeFile(stagingPath, body);
+      const indexed = await kb.importFile({ module, filePath: stagingPath, fileName, source: { type: 'upload', title: fileName.replace(/\.[^.]+$/, '') } });
+      return json(response, indexed.reused ? 200 : 201, { ok: true, reused: indexed.reused, document: publicDocument(indexed.document), stats: kb.stats() });
+    } catch (error) {
+      return json(response, 400, { error: error.message });
+    } finally {
+      if (stagingPath) await unlink(stagingPath).catch(() => {});
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/kb/reindex') {
+    try {
+      return json(response, 200, { ok: true, stats: await kb.rebuildIndex() });
+    } catch (error) {
+      return json(response, 500, { error: `重建索引失败：${error.message}` });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/kb/search') {
+    try {
+      const { query, module, limit } = await readJsonRequest(request);
+      const hits = kb.search(query, { module: module || undefined, limit: limit || 6 });
+      return json(response, 200, { query, hits: hits.map(({ text, ...hit }) => hit) });
+    } catch (error) {
+      return json(response, 400, { error: error.message });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/kb/ask') {
+    try {
+      const { question, module } = await readJsonRequest(request);
+      const hits = kb.search(question, { module: module || undefined, limit: 6 });
+      const result = await generateGroundedAnswer(question, hits);
+      return json(response, 200, {
+        question,
+        ...result,
+        citations: hits.map(({ text, ...hit }, index) => ({ id: index + 1, ...hit }))
+      });
+    } catch (error) {
+      return json(response, 400, { error: error.message });
+    }
+  }
   if (request.method === 'GET' && url.pathname === '/api/notifications/test-recipients') {
-    if (!notificationTestAccessToken) return json(response, 503, { error: '服务端未配置邮件测试授权码' });
-    if (!hasTestManagementAccess(request)) return json(response, 401, { error: '测试授权码无效' });
     return json(response, 200, { recipients: await getTestRecipients(), limit: notificationTestRecipientLimit });
   }
   if (request.method === 'POST' && url.pathname === '/api/notifications/test-recipients') {
@@ -251,6 +423,17 @@ async function handleApi(request, response, url) {
     try {
       const { email } = await readJsonRequest(request);
       return json(response, 200, { recipients: await addTestRecipient(email), limit: notificationTestRecipientLimit });
+    } catch (error) {
+      return json(response, 400, { error: error.message });
+    }
+  }
+  const removeRecipientMatch = url.pathname.match(/^\/api\/notifications\/test-recipients\/([^/]+)$/);
+  if (request.method === 'DELETE' && removeRecipientMatch) {
+    if (!notificationTestAccessToken) return json(response, 503, { error: '服务端未配置邮件测试授权码' });
+    if (!hasTestManagementAccess(request)) return json(response, 401, { error: '测试授权码无效' });
+    try {
+      const email = decodeURIComponent(removeRecipientMatch[1]);
+      return json(response, 200, { recipients: await removeTestRecipient(email), limit: notificationTestRecipientLimit });
     } catch (error) {
       return json(response, 400, { error: error.message });
     }
@@ -286,6 +469,7 @@ async function handleApi(request, response, url) {
     if (!token) return json(response, 503, { error: '服务端未配置 MINERU_TOKEN' });
     if (!/application\/pdf/i.test(request.headers['content-type'] || '')) return json(response, 415, { error: '仅支持 PDF 文件' });
     try {
+      const kbModule = parseKbModule(url.searchParams.get('module'));
       const body = await readRequestBody(request);
       if (body.subarray(0, 5).toString() !== '%PDF-') return json(response, 400, { error: '文件内容不是有效 PDF' });
       const id = randomUUID();
@@ -294,7 +478,7 @@ async function handleApi(request, response, url) {
       const originalPath = join(outputDir, 'original.pdf');
       await mkdir(outputDir, { recursive: true });
       await writeFile(originalPath, body);
-      const job = { id, fileName, size: body.length, outputDir, originalPath, state: 'queued', message: '任务已创建', createdAt: new Date().toISOString() };
+      const job = { id, fileName, size: body.length, outputDir, originalPath, kbModule, state: 'queued', message: '任务已创建', createdAt: new Date().toISOString() };
       jobs.set(id, job);
       void startParse(job);
       return json(response, 202, publicJob(job));
