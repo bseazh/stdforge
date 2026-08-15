@@ -28,11 +28,10 @@ async function getApprovalDefinition(token, approvalCode) {
 async function resolveDocumentToken(token, definition, docUrl) {
   const wikiToken = new URL(docUrl).pathname.match(/\/wiki\/([^/?]+)/)?.[1];
   if (!wikiToken) throw new Error('审批模板的标准草案必须使用飞书知识库文档链接');
-  const form = typeof definition.form === 'string' ? JSON.parse(definition.form) : definition.form;
-  const documentControl = form.find(control => control.type === 'document');
-  const spaceId = documentControl?.option?.archiveFolder?.split('/')[0];
-  if (!spaceId) throw new Error('审批模板未配置飞书文档控件');
-  const data = await requestJson(`${API_BASE}/wiki/v2/spaces/${encodeURIComponent(spaceId)}/nodes/${encodeURIComponent(wikiToken)}`, {
+  // A document control may be configured with an archive folder in a different
+  // Wiki space. Resolve the selected document from its own node instead of
+  // assuming that configuration is the document's actual parent space.
+  const data = await requestJson(`${API_BASE}/wiki/v2/spaces/get_node?token=${encodeURIComponent(wikiToken)}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   if (data.node?.obj_type !== 'docx' || !data.node?.obj_token) throw new Error('标准草案必须关联飞书 Docx 文档');
