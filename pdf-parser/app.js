@@ -8,7 +8,7 @@ const elements = {
   sourceResult: document.querySelector('#sourceResult'), errorPanel: document.querySelector('#errorPanel'), errorMessage: document.querySelector('#errorMessage'),
   downloadBar: document.querySelector('#downloadBar'), downloadOriginal: document.querySelector('#downloadOriginal'), downloadMarkdown: document.querySelector('#downloadMarkdown'),
   downloadArchive: document.querySelector('#downloadArchive'), resultMeta: document.querySelector('#resultMeta'), serverState: document.querySelector('#serverState'), toast: document.querySelector('#toast'),
-  feishuBar: document.querySelector('#feishuBar'), feishuDocUrl: document.querySelector('#feishuDocUrl'), syncFeishu: document.querySelector('#syncFeishu'), feishuMessage: document.querySelector('#feishuMessage')
+  feishuBar: document.querySelector('#feishuBar'), feishuDocUrl: document.querySelector('#feishuDocUrl'), syncFeishu: document.querySelector('#syncFeishu'), feishuMessage: document.querySelector('#feishuMessage'), submitApproval: document.querySelector('#submitApproval'), approvalLink: document.querySelector('#approvalLink'), checkApproval: document.querySelector('#checkApproval')
 };
 
 let selectedFile;
@@ -64,6 +64,9 @@ function reset() {
   elements.errorPanel.classList.add('hidden');
   elements.downloadBar.classList.add('hidden');
   elements.feishuBar.classList.add('hidden');
+  elements.submitApproval.classList.add('hidden');
+  elements.approvalLink.classList.add('hidden');
+  elements.checkApproval.classList.add('hidden');
   elements.fileState.textContent = '未选择';
   elements.parseButton.disabled = true;
   elements.resetButton.disabled = true;
@@ -119,6 +122,8 @@ function showDone(job) {
   elements.sourceResult.classList.add('hidden');
   elements.downloadBar.classList.remove('hidden');
   elements.feishuBar.classList.remove('hidden');
+  if (job.feishuSync) elements.submitApproval.classList.remove('hidden');
+  if (job.feishuApproval) showApproval(job.feishuApproval);
   elements.downloadOriginal.href = `/api/jobs/${job.id}/download/original`;
   elements.downloadMarkdown.href = `/api/jobs/${job.id}/download/markdown`;
   elements.downloadArchive.href = `/api/jobs/${job.id}/download/archive`;
@@ -141,12 +146,66 @@ async function syncToFeishu() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || '飞书同步失败');
     elements.feishuMessage.textContent = result.reused ? '该解析任务已同步到此文档' : '同步成功，已以追加方式写入';
+    currentJob.feishuSync = result;
+    elements.submitApproval.classList.remove('hidden');
     elements.syncFeishu.innerHTML = '<i data-lucide="check"></i>已同步';
     lucide.createIcons();
     notify('解析结果已同步到飞书文档');
   } catch (error) {
     elements.feishuMessage.textContent = error.message;
     elements.syncFeishu.disabled = false;
+  }
+}
+
+function showApproval(approval) {
+  elements.submitApproval.classList.add('hidden');
+  elements.approvalLink.href = approval.approvalUrl;
+  elements.approvalLink.classList.remove('hidden');
+  elements.checkApproval.classList.remove('hidden');
+  elements.feishuMessage.textContent = `审批已创建：${approval.status || 'PENDING'}`;
+}
+
+function defaultStandardNo() {
+  const source = (selectedFile?.name || currentJob?.fileName || '').replace(/[_-]/g, ' ');
+  return source.match(/(?:GB\/?T|GBT)\s*\d+(?:\s*[-—]\s*\d{4})?/i)?.[0] || source.replace(/\.pdf$/i, '');
+}
+
+async function submitApproval() {
+  if (!currentJob?.id || !currentJob.feishuSync) return;
+  elements.submitApproval.disabled = true;
+  elements.feishuMessage.textContent = '正在创建飞书审批实例';
+  try {
+    const fileBaseName = (selectedFile?.name || currentJob.fileName).replace(/\.pdf$/i, '');
+    const response = await fetch(`/api/jobs/${currentJob.id}/approval/feishu`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ standardNo: defaultStandardNo(), standardName: fileBaseName })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '创建飞书审批失败');
+    currentJob.feishuApproval = result;
+    showApproval(result);
+    notify('飞书审批已创建');
+  } catch (error) {
+    elements.feishuMessage.textContent = error.message;
+    elements.submitApproval.disabled = false;
+  }
+}
+
+async function checkApproval() {
+  if (!currentJob?.id) return;
+  elements.checkApproval.disabled = true;
+  try {
+    const response = await fetch(`/api/jobs/${currentJob.id}/approval/feishu`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '查询审批结果失败');
+    currentJob.feishuApproval = result;
+    showApproval(result);
+    notify(`审批状态：${result.status}`);
+  } catch (error) {
+    elements.feishuMessage.textContent = error.message;
+  } finally {
+    elements.checkApproval.disabled = false;
   }
 }
 
@@ -207,6 +266,8 @@ elements.parseButton.addEventListener('click', parseFile);
 elements.resetButton.addEventListener('click', reset);
 elements.removeFile.addEventListener('click', reset);
 elements.syncFeishu.addEventListener('click', syncToFeishu);
+elements.submitApproval.addEventListener('click', submitApproval);
+elements.checkApproval.addEventListener('click', checkApproval);
 document.querySelectorAll('.view-tabs button').forEach(button => button.addEventListener('click', () => {
   document.querySelectorAll('.view-tabs button').forEach(tab => tab.classList.toggle('active', tab === button));
   const sourceMode = button.dataset.mode === 'source';

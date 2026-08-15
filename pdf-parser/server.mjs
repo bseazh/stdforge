@@ -8,6 +8,7 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { parsePdf, ResultDownloadError } from './mineru-client.mjs';
 import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
+import { createApprovalInstance, getApprovalInstance } from './feishu-approval-client.mjs';
 
 const root = resolve(import.meta.dirname);
 const runtimeRoot = join(root, '.runtime');
@@ -29,6 +30,8 @@ for (const envFile of ['.env.local', '.env.smtp.local']) {
 const token = process.env.MINERU_TOKEN;
 const feishuAppId = process.env.FEISHU_APP_ID;
 const feishuAppSecret = process.env.FEISHU_APP_SECRET;
+const feishuApprovalCode = process.env.FEISHU_APPROVAL_CODE;
+const feishuInitiatorOpenId = process.env.FEISHU_INITIATOR_OPEN_ID;
 const smtpHost = process.env.SMTP_HOST;
 const smtpPort = Number(process.env.SMTP_PORT || 465);
 const smtpSecure = process.env.SMTP_SECURE !== 'false';
@@ -96,7 +99,9 @@ function publicJob(job) {
     markdown: job.state === 'done' ? job.markdown : undefined,
     error: job.error,
     failureStage: job.failureStage,
-    retryable: job.retryable === true
+    retryable: job.retryable === true,
+    feishuSync: job.feishuSync,
+    feishuApproval: job.feishuApproval
   };
 }
 
@@ -230,6 +235,7 @@ async function handleApi(request, response, url) {
       ok: true,
       mineruConfigured: Boolean(token),
       feishuConfigured: Boolean(feishuAppId && feishuAppSecret),
+      feishuApprovalConfigured: Boolean(feishuApprovalCode && feishuInitiatorOpenId),
       smtpConfigured,
       smtpTestManagementConfigured: Boolean(notificationTestAccessToken)
     });
@@ -318,6 +324,63 @@ async function handleApi(request, response, url) {
       const result = await appendToFeishuDocument({ appId: feishuAppId, appSecret: feishuAppSecret, docUrl, markdown });
       job.feishuSync = { docUrl, syncedAt: new Date().toISOString(), ...result };
       return json(response, 200, job.feishuSync);
+    } catch (error) {
+      return json(response, 502, { error: error.message });
+    }
+  }
+  const approvalCreateMatch = url.pathname.match(/^\/api\/jobs\/([0-9a-f-]+)\/approval\/feishu$/);
+  if (request.method === 'POST' && approvalCreateMatch) {
+    const job = jobs.get(approvalCreateMatch[1]);
+    if (!job) return json(response, 404, { error: '任务不存在或服务已重启' });
+    if (job.state !== 'done') return json(response, 409, { error: 'PDF 解析尚未完成' });
+    if (!feishuAppId || !feishuAppSecret || !feishuApprovalCode || !feishuInitiatorOpenId) {
+      return json(response, 503, { error: '服务端未配置飞书审批模板或发起人身份' });
+    }
+    if (!job.feishuSync?.docUrl) return json(response, 409, { error: '请先同步解析结果到飞书文档' });
+    if (job.feishuApproval) return json(response, 200, { ...job.feishuApproval, reused: true });
+    try {
+      const requestBody = await readJsonRequest(request);
+      const approval = await createApprovalInstance({
+        appId: feishuAppId,
+        appSecret: feishuAppSecret,
+        approvalCode: feishuApprovalCode,
+        initiatorOpenId: feishuInitiatorOpenId,
+        docUrl: job.feishuSync.docUrl,
+        jobId: job.id,
+        fileName: job.fileName,
+        standardNo: requestBody.standardNo,
+        standardName: requestBody.standardName,
+        reviewNote: requestBody.reviewNote,
+        publishDate: requestBody.publishDate,
+        publishMode: requestBody.publishMode
+      });
+      job.feishuApproval = {
+        ...approval,
+        docUrl: job.feishuSync.docUrl,
+        status: 'PENDING',
+        createdAt: new Date().toISOString()
+      };
+      return json(response, 201, job.feishuApproval);
+    } catch (error) {
+      return json(response, 502, { error: error.message });
+    }
+  }
+  const approvalStatusMatch = url.pathname.match(/^\/api\/jobs\/([0-9a-f-]+)\/approval\/feishu$/);
+  if (request.method === 'GET' && approvalStatusMatch) {
+    const job = jobs.get(approvalStatusMatch[1]);
+    if (!job) return json(response, 404, { error: '任务不存在或服务已重启' });
+    if (!job.feishuApproval) return json(response, 404, { error: '尚未创建飞书审批实例' });
+    try {
+      const instance = await getApprovalInstance({ appId: feishuAppId, appSecret: feishuAppSecret, instanceCode: job.feishuApproval.instanceCode });
+      const status = instance.status || job.feishuApproval.status;
+      Object.assign(job.feishuApproval, { status, checkedAt: new Date().toISOString() });
+      if (['APPROVED', 'REJECTED', 'CANCELED'].includes(status) && job.feishuApproval.writtenStatus !== status) {
+        const resultLabel = status === 'APPROVED' ? '已批准' : status === 'REJECTED' ? '需修改' : '已取消';
+        const markdown = `## StdForge 审批结果 · ${job.feishuApproval.instanceCode}\n\n- 状态：${resultLabel}\n- 审批实例：${job.feishuApproval.instanceCode}\n- 回写时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
+        await appendToFeishuDocument({ appId: feishuAppId, appSecret: feishuAppSecret, docUrl: job.feishuApproval.docUrl, markdown });
+        job.feishuApproval.writtenStatus = status;
+      }
+      return json(response, 200, job.feishuApproval);
     } catch (error) {
       return json(response, 502, { error: error.message });
     }

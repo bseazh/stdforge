@@ -1,0 +1,90 @@
+const API_BASE = 'https://open.feishu.cn/open-apis';
+const TOKEN_URL = `${API_BASE}/auth/v3/tenant_access_token/internal`;
+
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.code !== 0) throw new Error(body.msg || `Feishu HTTP ${response.status}`);
+  return body.data;
+}
+
+export async function getTenantAccessToken(appId, appSecret) {
+  const response = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.code !== 0 || !body.tenant_access_token) throw new Error(body.msg || 'Unable to obtain Feishu tenant access token');
+  return body.tenant_access_token;
+}
+
+async function getApprovalDefinition(token, approvalCode) {
+  return requestJson(`${API_BASE}/approval/v4/approvals/${encodeURIComponent(approvalCode)}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+async function resolveDocumentToken(token, definition, docUrl) {
+  const wikiToken = new URL(docUrl).pathname.match(/\/wiki\/([^/?]+)/)?.[1];
+  if (!wikiToken) throw new Error('审批模板的标准草案必须使用飞书知识库文档链接');
+  const form = typeof definition.form === 'string' ? JSON.parse(definition.form) : definition.form;
+  const documentControl = form.find(control => control.type === 'document');
+  const spaceId = documentControl?.option?.archiveFolder?.split('/')[0];
+  if (!spaceId) throw new Error('审批模板未配置飞书文档控件');
+  const data = await requestJson(`${API_BASE}/wiki/v2/spaces/${encodeURIComponent(spaceId)}/nodes/${encodeURIComponent(wikiToken)}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (data.node?.obj_type !== 'docx' || !data.node?.obj_token) throw new Error('标准草案必须关联飞书 Docx 文档');
+  return data.node.obj_token;
+}
+
+function findControl(definition, name) {
+  const form = typeof definition.form === 'string' ? JSON.parse(definition.form) : definition.form;
+  const control = form.find(item => item.name === name);
+  if (!control) throw new Error(`审批模板缺少控件：${name}`);
+  return control;
+}
+
+export async function createApprovalInstance({ appId, appSecret, approvalCode, initiatorOpenId, docUrl, jobId, fileName, standardNo, standardName, reviewNote, publishDate, publishMode = 'Demo 模拟发布' }) {
+  const token = await getTenantAccessToken(appId, appSecret);
+  const definition = await getApprovalDefinition(token, approvalCode);
+  if (definition.status !== 'ACTIVE') throw new Error('审批模板未启用');
+  const documentToken = await resolveDocumentToken(token, definition, docUrl);
+  const radio = findControl(definition, '发布方式');
+  const publishOption = radio.option?.find(option => option.text === publishMode) || radio.option?.[0];
+  if (!publishOption) throw new Error('审批模板未配置发布方式选项');
+  const planDate = new Date(publishDate || Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const form = [
+    { id: findControl(definition, '标准编号').id, type: 'input', value: standardNo || fileName.replace(/\.pdf$/i, '') },
+    { id: findControl(definition, '标准名称').id, type: 'input', value: standardName || fileName.replace(/\.pdf$/i, '') },
+    { id: findControl(definition, '标准草案（飞书文档）').id, type: 'document', value: { token: documentToken, type: 'docx' } },
+    { id: findControl(definition, '预审说明 / 审查重点').id, type: 'textarea', value: reviewNote || '请重点审查适用范围、技术指标、引用文件、表格内容及格式规范，并提出修改意见。' },
+    { id: findControl(definition, 'StdForge 解析任务 ID').id, type: 'input', value: jobId },
+    { id: findControl(definition, '计划发布日期').id, type: 'date', value: planDate },
+    { id: radio.id, type: 'radioV2', value: publishOption.value }
+  ];
+  const data = await requestJson(`${API_BASE}/approval/v4/instances`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({
+      approval_code: approvalCode,
+      open_id: initiatorOpenId,
+      form: JSON.stringify(form),
+      uuid: `stdforge-${jobId}`,
+      allow_resubmit: true
+    })
+  });
+  if (!data.instance_code) throw new Error('飞书未返回审批实例编号');
+  return {
+    instanceCode: data.instance_code,
+    approvalUrl: `https://www.feishu.cn/approval/instance/detail?instance_code=${encodeURIComponent(data.instance_code)}`
+  };
+}
+
+export async function getApprovalInstance({ appId, appSecret, instanceCode }) {
+  const token = await getTenantAccessToken(appId, appSecret);
+  return requestJson(`${API_BASE}/approval/v4/instances/${encodeURIComponent(instanceCode)}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
