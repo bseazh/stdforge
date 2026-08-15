@@ -66,21 +66,197 @@ let moduleOneFeishuUrl = '';
 let moduleOneGenerationTimer = null;
 let moduleOneGenerationStartedAt = 0;
 let moduleOneGenerationActive = false;
+let moduleOneBilingualReady = false;
 let activeEditorSection = 'safety';
 
 const editorOutlineSections = {
-  preface: { label: '前言', title: '前言', body: '本文件按照 GB/T 1.1—2020 给出的规则起草。本演示稿由研发技术要求自动整理后形成，后续由标准化工程师确认。', subheading: '编制说明', detail: '本章节为固定演示文案，用于说明草案来源与人工确认责任。' },
-  scope: { label: '1 范围', title: '1 范围', body: '本文件规定了二手洗衣机鉴定的技术要求、鉴定方法、鉴定结论与记录要求。本文件适用于进入二手流通环节的家用洗衣机。', subheading: '适用边界', detail: '不适用于无法安全通电、缺少关键部件或无法识别型号的产品。' },
-  references: { label: '2 规范性引用文件', title: '2 规范性引用文件', body: '下列文件中的内容通过文中的规范性引用而构成本文件必不可少的条款。凡是注日期的引用文件，仅所注日期的版本适用于本文件。', subheading: '引用清单', detail: 'GB/T 4706.1—2024 家用和类似用途电器的安全 第 1 部分：通用要求。' },
-  terms: { label: '3 术语和定义', title: '3 术语和定义', body: '二手洗衣机：已进入使用或流通环节，经过检测、鉴定后可再次进入交易或再利用环节的洗衣机产品。', subheading: '鉴定结论', detail: '符合本文件技术要求的产品，鉴定结论为“合格”。' },
-  process: { label: '4 鉴定流程和要求', title: '4 鉴定流程和要求', body: '鉴定应包括受理、信息核验、外观检查、安全检查、性能检查、结论判定和记录归档等步骤。', subheading: '流程记录', detail: '每个步骤应保留产品型号、检查人、检查时间和结论。' },
-  conditions: { label: '5 鉴定作业条件', title: '5 鉴定作业条件', body: '鉴定场所应具备安全供电、通风、照明和必要的测试条件。环境温度宜为 15 ℃ 至 35 ℃。', subheading: '作业安全', detail: '鉴定前应确认产品断电状态，并检查电源线和接地条件。' },
-  organization: { label: '6 鉴定机构和人员', title: '6 鉴定机构和人员', body: '鉴定机构应具备与鉴定活动相适应的场地、设备和质量管理能力。鉴定人员应经过相关培训并保留能力记录。', subheading: '复核要求', detail: '高风险问题应由复核人员独立确认后形成结论。' },
-  requirements: { label: '7 鉴定技术要求', title: '7 鉴定技术要求', body: '产品应满足安全性、功能性和主要性能要求。每项检查应有明确的检查方法和判定依据。', subheading: '章节提示', detail: '点击“7.2 安全性检查”或“7.4 性能检查”查看对应条款。' },
-  safety: { label: '7 鉴定技术要求', title: '7.2 安全性检查', body: '二手洗衣机的安全性应符合 GB/T 4706.1—2024 的规定。', subheading: '7.2.1 检查方法', detail: '请填写检查步骤、使用的仪器或引用的试验方法。', editable: true, alert: true },
-  performance: { label: '7 鉴定技术要求', title: '7.4 性能检查', body: '洗涤、脱水、排水和控制功能应正常；运行过程中不应出现影响使用安全的异常噪声、振动或故障提示。', subheading: '7.4.1 检查方法', detail: '按产品使用说明书进行通电试运行，并记录功能检查结果。' },
-  appendix: { label: '附录 A（规范性）', title: '附录 A 鉴定记录表', body: '鉴定记录应至少包括产品信息、外观检查、安全检查、性能检查、判定结论、鉴定人员和复核人员。', subheading: '记录要求', detail: '记录表应与本次鉴定任务唯一关联，并保留可追溯编号。' }
+  preface: { label: '前言', title: '前言', body: '本文件按照 GB/T 1.1—2020 给出的规则起草。本演示稿由车载冰箱研发技术要求和 QC/T 1196—2023 参考模板自动整理后形成，后续由标准化工程师确认。', subheading: '协同重点', detail: '确认起草单位、标准属性、首次发布说明及专利提示。' },
+  scope: { label: '1 范围', title: '1 范围', body: '本文件规定了车载冰箱的术语和定义、技术要求、试验方法、检验规则及标志、包装、运输和贮存。', subheading: '适用边界', detail: '重点确认是否仅覆盖压缩式制冷车载冰箱，以及是否排除医用冷链和吸收式产品。' },
+  references: { label: '2 规范性引用文件', title: '2 规范性引用文件', body: '引用 GB/T 2423、GB/T 8059、GB/T 18655、GB/T 28046、GB/T 30512、QC/T 413、QC/T 29106 等文件。', subheading: '协同重点', detail: '法规与标准化人员需核验引用文件版本、日期引用策略和现行有效性。' },
+  terms: { label: '3 术语和定义', title: '3 术语和定义', body: '车载冰箱、稳定运行状态、保温时间、储藏温度、特性温度、制冷速度和容积等术语适用于本文件。', subheading: '术语校对', detail: '英文译法优先采用术语库：vehicle refrigerator、stable operating conditions、storage temperature。' },
+  process: { label: '4 技术要求', title: '4 技术要求', body: '冰箱应满足一般要求、总容积、密封性、耐久性、机械强度、制冷性能、凝露、材料、噪声、振动、冲击、腐蚀、电磁兼容、电气性能和环境适应性要求。', subheading: '条款拆分', detail: '建议研发负责人按指标来源确认每个限值是否来自原始技术要求或参考标准。' },
+  conditions: { label: '5 试验方法', title: '5 试验方法', body: '试验方法包括一般试验条件、总容积测定、密封性试验、门盖抽屉耐久性、制冷性能、材料噪声环境试验、气候负荷和防倒保护试验。', subheading: '验证路径', detail: '质量实验室需确认仪器精度、环境条件、温度传感器布置和试验持续时间。' },
+  organization: { label: '6 检验规则', title: '6 检验规则', body: '出厂检验项目包括外形、安装尺寸、标志和性能参数；型式检验应从出厂检验合格的同批产品中随机抽样。', subheading: '抽样确认', detail: '需补充样本数量、复检规则和不合格批判定路径。' },
+  requirements: { label: '7 标志包装', title: '7 标志、包装、贮存和保管', body: '每台冰箱应在明显位置设置耐久铭牌和电路图，铭牌应标明产品名称、型号、总容积、额定电压、功率或电流、耗电量、制冷剂、制造商、日期编号和净重。', subheading: '协同重点', detail: '确认铭牌必填项、包装运输要求和 QC/T 413 对齐情况。' },
+  safety: { label: '4 技术要求', title: '4.6 制冷性能', body: '在环境温度 32 ℃、相对湿度 45%～75% 条件下，冰箱空载运行，箱内几何中心温度从 32 ℃ 达到 0 ℃ 的时间应不大于 45 min；从 0 ℃ 回升到 20 ℃ 的时间应不小于 90 min。', subheading: '4.6.1 检查方法', detail: '请研发、质量和标准化人员确认 45 min、90 min 阈值是否适用于当前产品系列。', editable: true, alert: true },
+  performance: { label: '4 技术要求', title: '4.15 电磁兼容性能', body: '冰箱的传导发射、电压瞬态发射、瞬态传导抗扰性、电磁辐射抗扰性和静电放电应满足相关标准规定的等级要求。', subheading: '协同重点', detail: 'EMC 测试人员需确认 GB/T 18655、GB/T 21437.2、GB/T 33014 和 GB/T 19951 的适用等级。' },
+  appendix: { label: '附录 A / B', title: '附录 A 冰箱储藏温度试验方法、附录 B 气味性试验方法', body: '附录 A 规定储藏温度档位设定和温度传感器布置；附录 B 规定非金属材料和整机气味性试验方法。', subheading: '记录要求', detail: '协同人员需补充测点示意图、记录表字段和气味等级评价记录。' }
 };
+
+const moduleOneVehicleBilingual = {
+  zh: `# QC/T 1196—2023 车载冰箱
+
+ICS 43.040.10
+CCS T 36
+
+## 前言
+本文件按照 GB/T 1.1—2020《标准化工作导则 第 1 部分：标准化文件的结构和起草规则》的规定起草。
+
+本文件由全国汽车标准化技术委员会提出并归口。本文件为首次发布。
+
+## 1 范围
+本文件规定了车载冰箱的术语和定义、技术要求、试验方法、检验规则及标志、包装、运输和贮存。
+
+本文件适用于压缩式制冷的车载冰箱，以下简称“冰箱”。
+
+## 2 规范性引用文件
+下列文件中的内容通过文中的规范性引用而构成本文件必不可少的条款。
+
+GB/T 2423.10 环境试验 第 2 部分：试验方法 试验 Fc：振动（正弦）
+
+GB/T 8059 家用和类似用途制冷器具
+
+GB/T 18655—2018 车辆、船和内燃机无线电骚扰特性
+
+GB/T 28046.1～28046.5 道路车辆 电气及电子设备的环境条件和试验
+
+QC/T 413 汽车电气设备基本技术条件
+
+QC/T 29106 汽车电线束技术条件
+
+## 3 术语和定义
+车载冰箱是由一个或多个间室组成且间室能够控制温度，具有适合车用的容积和结构，以自然对流或强制对流方式获取冷量的隔热箱体。
+
+稳定运行状态是指冰箱设定到相应温度档位后，制冷系统连续运行，各测点平均温度与开始阶段对应点平均温度偏差不超过 0.5 K 的状态。
+
+保温时间是指冰箱制冷系统空载运行中断后，箱内几何中心温度从 0 ℃ 回升到 20 ℃ 所需要的时间。
+
+## 4 技术要求
+冰箱应符合本文件要求，并按照经规定程序批准的产品图样和技术文件进行制造。标志、标签应清晰、完整、永久。
+
+冰箱在车内使用环境下，下限工作温度为 -10 ℃，上限工作温度为 50 ℃；下限贮存温度为 -40 ℃，上限贮存温度为 80 ℃。
+
+标称电压为 12 V 时，最低工作电压为 10.5 V，最高工作电压为 16.0 V；标称电压为 24 V 时，最低工作电压为 22 V，最高工作电压为 32 V。
+
+冰箱总容积的实测值应不小于标称值的 97%。当冰箱门关闭后，应无外部空气进入箱内。
+
+经过 10 000 次开合或抽拉测试后，冰箱的外门、盖或抽屉应无变形、脱落、裂纹和阻滞现象。
+
+在环境温度 32 ℃、相对湿度 45%～75% 条件下，冰箱空载运行，箱内几何中心温度从 32 ℃ 达到 0 ℃ 的时间应不大于 45 min。
+
+冰箱空载运行到 0 ℃ 后断电，箱内几何中心温度从 0 ℃ 回升到 20 ℃ 的时间应不小于 90 min。
+
+冰箱使用的材料应符合汽车禁用物质、阻燃、散发物、食品接触和气味性要求。冰箱噪声值应不大于 45 dB(A)。
+
+冰箱应满足振动、机械冲击、盐雾、涂层附着力、耐化学、电磁兼容、电气性能、低温、高温、温度循环、耐久性和防倒保护要求。
+
+## 5 试验方法
+如未标明特殊要求，所有试验均在环境温度 23 ℃±5 ℃、相对湿度 45%～75%、大气压力 86 kPa～106 kPa 条件下进行。
+
+标称电压为 12 V 的冰箱试验电压为 14 V±0.2 V；标称电压为 24 V 的冰箱试验电压为 28 V±0.2 V。
+
+储藏温度试验按照附录 A 进行。制冷速度试验应记录箱内温度达到 0 ℃ 所需时间。保温时间试验应记录箱内平均温度从 0 ℃ 回升到 20 ℃ 所需时间。
+
+材料试验、噪声试验、振动试验、机械冲击试验、盐雾试验、涂层附着力试验、耐化学性能试验、电磁兼容性能试验和电性能试验应按相应引用标准进行。
+
+## 6 检验规则
+冰箱须经制造厂质量检验部门检验合格后方能出厂，并附有质量检验合格证、使用说明书、保修单和装箱清单等。
+
+出厂检验项目包括冰箱的外形、安装尺寸、标志和性能参数。型式检验样品应从出厂检验合格的同批产品中随机抽样。
+
+## 7 标志、包装、贮存和保管
+每台冰箱应在适当和明显位置处设置耐久性的铭牌和电路图，铭牌应清晰标出产品名称、型号、总容积、额定电压、额定功率或电流、耗电量、制冷剂、制造商、制造日期和编号、净重等内容。
+
+冰箱的包装、贮存和保管应符合 QC/T 413 的规定。
+
+## 附录 A 冰箱储藏温度试验方法
+在环境温度 32 ℃、相对湿度 45%～75% 条件下进行储藏温度试验。温度传感器布置在储藏室代表性位置，分别记录上部、中部和下部测点温度。
+
+## 附录 B 气味性试验方法
+冰箱使用的非金属材料和整机气味性试验应在规定时间内完成。样品在运输过程中应包装完好，所用包装材料不得破损且不得产生二次污染。`,
+  en: `# QC/T 1196—2023 Vehicle Refrigerator
+
+ICS 43.040.10
+CCS T 36
+
+## Foreword
+This document has been drafted in accordance with GB/T 1.1—2020 Directives for standardization — Part 1: Rules for the structure and drafting of standardizing documents.
+
+This document was proposed by and is under the jurisdiction of the National Technical Committee of Auto Standardization. This document is issued for the first time.
+
+## 1 Scope
+This document specifies the terms and definitions, technical requirements, test methods, inspection rules, marking, packaging, transportation and storage of vehicle refrigerators.
+
+This document applies to compression-type vehicle refrigerators, hereinafter referred to as “refrigerators”.
+
+## 2 Normative references
+The contents of the following documents constitute indispensable provisions of this document through normative references in the text.
+
+GB/T 2423.10 Environmental testing — Part 2: Test methods — Test Fc: Vibration (sinusoidal)
+
+GB/T 8059 Household and similar refrigerating appliances
+
+GB/T 18655—2018 Vehicles, boats and internal combustion engines — Radio disturbance characteristics
+
+GB/T 28046.1 to 28046.5 Road vehicles — Environmental conditions and testing for electrical and electronic equipment
+
+QC/T 413 Basic technical requirements for automotive electrical equipment
+
+QC/T 29106 Technical specifications for automotive wiring harnesses
+
+## 3 Terms and definitions
+A vehicle refrigerator is an insulated cabinet consisting of one or more compartments whose temperature can be controlled, having capacity and structure suitable for vehicle use, and obtaining cooling capacity by natural convection or forced convection.
+
+Stable operating conditions refer to the state in which the refrigerator is set to the corresponding temperature position and the refrigeration system operates continuously, and the deviation between each measuring point and its corresponding initial-stage average temperature does not exceed 0.5 K.
+
+Temperature recovery time refers to the time required for the geometric-center temperature inside the cabinet to rise from 0 ℃ to 20 ℃ after the unloaded refrigeration system stops operating.
+
+## 4 Technical requirements
+The refrigerator shall comply with this document and shall be manufactured according to product drawings and technical documents approved through the prescribed procedures. Its marks and labels shall be clear, complete and permanent.
+
+For in-vehicle use, the lower operating temperature is -10 ℃, the upper operating temperature is 50 ℃, the lower storage temperature is -40 ℃, and the upper storage temperature is 80 ℃.
+
+For a nominal voltage of 12 V, the minimum operating voltage is 10.5 V and the maximum operating voltage is 16.0 V. For a nominal voltage of 24 V, the minimum operating voltage is 22 V and the maximum operating voltage is 32 V.
+
+The measured total volume of the refrigerator shall be not less than 97% of the rated value. When the refrigerator door is closed, no external air shall enter the cabinet.
+
+After 10 000 opening-closing or pulling tests, the external door, lid or drawer shall show no deformation, detachment, cracking or jamming.
+
+At an ambient temperature of 32 ℃ and relative humidity of 45% to 75%, the unloaded refrigerator shall reduce the geometric-center temperature from 32 ℃ to 0 ℃ within not more than 45 min.
+
+After the unloaded refrigerator operates to 0 ℃ and is powered off, the time for the geometric-center temperature to rise from 0 ℃ to 20 ℃ shall be not less than 90 min.
+
+The materials used in the refrigerator shall meet the requirements for prohibited substances, flame retardancy, emissions, food contact and odour. The noise value shall not exceed 45 dB(A).
+
+The refrigerator shall meet requirements for vibration, mechanical shock, salt mist, coating adhesion, chemical resistance, electromagnetic compatibility, electrical performance, low temperature, high temperature, temperature cycling, durability and anti-tip protection.
+
+## 5 Test methods
+Unless otherwise specified, all tests shall be conducted at an ambient temperature of 23 ℃ ± 5 ℃, relative humidity of 45% to 75%, and atmospheric pressure of 86 kPa to 106 kPa.
+
+The test voltage shall be 14 V ± 0.2 V for a refrigerator with a nominal voltage of 12 V, and 28 V ± 0.2 V for a refrigerator with a nominal voltage of 24 V.
+
+The storage temperature test shall be conducted in accordance with Annex A. The refrigeration speed test shall record the time required for the internal temperature to reach 0 ℃. The temperature recovery time test shall record the time required for the internal average temperature to rise from 0 ℃ to 20 ℃.
+
+Material tests, noise tests, vibration tests, mechanical shock tests, salt-mist tests, coating adhesion tests, chemical resistance tests, electromagnetic compatibility tests and electrical performance tests shall be conducted according to the corresponding referenced standards.
+
+## 6 Inspection rules
+The refrigerator may leave the factory only after passing inspection by the manufacturer’s quality inspection department, and shall be accompanied by a quality certificate, operating instructions, warranty card and packing list.
+
+Factory inspection items include appearance, installation dimensions, marking and performance parameters. Samples for type inspection shall be randomly taken from the same batch of products that have passed factory inspection.
+
+## 7 Marking, packaging, storage and safekeeping
+Each refrigerator shall have a durable nameplate and circuit diagram in an appropriate and obvious position. The nameplate shall clearly indicate product name, model, total volume, rated voltage, rated power or current, energy consumption, refrigerant, manufacturer, manufacturing date and number, net weight and other information.
+
+Packaging, storage and safekeeping of the refrigerator shall comply with QC/T 413.
+
+## Annex A Test method for refrigerator storage temperature
+The storage temperature test shall be conducted at an ambient temperature of 32 ℃ and relative humidity of 45% to 75%. Temperature sensors shall be arranged at representative positions in the storage compartment, and temperatures at upper, middle and lower measuring points shall be recorded.
+
+## Annex B Odour test method
+The odour test for non-metallic materials and the complete refrigerator shall be completed within the specified time. Samples shall be well packaged during transportation, and packaging materials shall not be damaged or cause secondary contamination.`
+};
+
+const moduleOneChapterReviews = [
+  ['前言', '待确认起草单位、归口单位、首次发布说明和专利提示。', '标准化工程师'],
+  ['1 范围', '确认适用压缩式车载冰箱，排除吸收式、医用冷链和仅保温储物箱。', '产品经理 / 法规'],
+  ['2 规范性引用文件', '核验 GB/T 8059、GB/T 28046、QC/T 413 等引用文件版本。', '法规专员'],
+  ['3 术语和定义', '锁定 vehicle refrigerator、storage temperature 等英文术语。', '标准化工程师'],
+  ['4 技术要求', '确认工作温度、电压范围、容积偏差、制冷速度和保温时间阈值。', '研发 / 质量'],
+  ['5 试验方法', '确认环境条件、传感器布置、仪器精度和试验持续时间。', '实验室'],
+  ['6 检验规则', '补充出厂检验、型式检验、复检和不合格批判定规则。', '质量'],
+  ['7 标志包装', '确认铭牌字段、制冷剂标识、包装贮存和 QC/T 413 对齐情况。', '制造 / 品质'],
+  ['附录 A/B', '补充储藏温度试验记录表和气味性评价记录。', '实验室 / 标准化']
+];
 
 function moduleOneMarkdownHtml(markdown) {
   const lines = String(markdown || '').split(/\r?\n/);
@@ -109,10 +285,52 @@ function moduleOneMarkdownHtml(markdown) {
 
 function setModuleOneMode(mode) {
   const ai = mode === 'ai';
+  const bilingual = mode === 'bilingual';
   document.querySelector('#moduleOneDraft').classList.toggle('hidden', !ai);
-  document.querySelector('#clauseEditorWorkbench').classList.toggle('hidden', ai);
+  document.querySelector('#moduleOneBilingualWorkbench').classList.toggle('hidden', !bilingual);
+  document.querySelector('#clauseEditorWorkbench').classList.toggle('hidden', mode !== 'editor');
   document.querySelector('#standardEditorActions').classList.toggle('hidden', ai);
   document.querySelectorAll('[data-drafting-mode]').forEach(button => button.classList.toggle('active', button.dataset.draftingMode === mode));
+  if (mode === 'bilingual') renderModuleOneBilingual();
+  if (mode === 'editor') renderChapterReviewList();
+}
+
+function shouldAutoGenerateBilingual() {
+  return moduleOneSourceItem?.id === 'vehicle-refrigerator' && moduleOneTemplateItem?.id === 'vehicle-refrigerator';
+}
+
+function renderModuleOneBilingual() {
+  const spread = document.querySelector('#moduleOneBilingualSpread');
+  if (!moduleOneBilingualReady) {
+    spread.innerHTML = '<div class="module-one-bilingual-empty"><i data-lucide="languages"></i><strong>等待生成车载冰箱中英对照稿</strong><span>请在第一步选择“车载冰箱温控与性能技术要求”和“车载冰箱产品参考模板”，点击生成草案。</span></div>';
+  } else {
+    spread.innerHTML = '<div class="module-one-bilingual-heading"><span>中文标准草案</span><i></i><span>English Draft</span></div><div class="module-one-bilingual-pages"><article><b>中文</b><div>' + escapeHtml(moduleOneVehicleBilingual.zh) + '</div></article><i></i><article><b>ENGLISH</b><div>' + escapeHtml(moduleOneVehicleBilingual.en) + '</div></article></div>';
+  }
+  lucide.createIcons();
+  bindModuleOneBilingualScroll();
+}
+
+function bindModuleOneBilingualScroll() {
+  const blocks = document.querySelectorAll('.module-one-bilingual-pages article div');
+  if (blocks.length !== 2) return;
+  let syncing = false;
+  const sync = (source, target) => {
+    if (syncing) return;
+    const maxSource = source.scrollHeight - source.clientHeight;
+    const maxTarget = target.scrollHeight - target.clientHeight;
+    if (maxSource <= 0 || maxTarget <= 0) return;
+    syncing = true;
+    target.scrollTop = (source.scrollTop / maxSource) * maxTarget;
+    window.requestAnimationFrame(() => { syncing = false; });
+  };
+  blocks[0].addEventListener('scroll', () => sync(blocks[0], blocks[1]));
+  blocks[1].addEventListener('scroll', () => sync(blocks[1], blocks[0]));
+}
+
+function renderChapterReviewList() {
+  const list = document.querySelector('#chapterReviewList');
+  if (!list) return;
+  list.innerHTML = '<h3>章节协同清单</h3>' + moduleOneChapterReviews.map(([chapter, focus, owner], index) => '<article><span>' + String(index + 1).padStart(2, '0') + '</span><div><strong>' + escapeHtml(chapter) + '</strong><p>' + escapeHtml(focus) + '</p></div><em>' + escapeHtml(owner) + '</em></article>').join('');
 }
 
 function updateModuleOneDraftState() {
@@ -346,6 +564,7 @@ function renderModuleOneOutput() {
   document.querySelector('#moduleOneMarkdown').innerHTML = moduleOneMarkdownHtml(moduleOneDrafts[moduleOneActiveOutput] || '');
   document.querySelectorAll('[data-module-one-output]').forEach(button => button.classList.toggle('active', button.dataset.moduleOneOutput === moduleOneActiveOutput));
   document.querySelector('#moduleOneSyncFeishu').disabled = !moduleOneDrafts.standardDraft;
+  document.querySelector('#moduleOneSyncFeishuFromEditor').disabled = !moduleOneDrafts.standardDraft;
   updateModuleOneComparison();
 }
 
@@ -444,11 +663,20 @@ async function generateModuleOneDrafts() {
     if (!response.ok) throw new Error(result.error || '草案生成失败');
     moduleOneDrafts = { standardDraft: result.standardDraft, compilationNotes: result.compilationNotes, preResearchReport: result.preResearchReport };
     moduleOneActiveOutput = 'standardDraft';
+    moduleOneBilingualReady = shouldAutoGenerateBilingual();
     moduleOneFeishuUrl = '';
     document.querySelector('#moduleOneOpenFeishu').classList.add('hidden');
+    document.querySelector('#moduleOneOpenFeishuFromEditor').classList.add('hidden');
     document.querySelector('#moduleOneOutput').classList.remove('hidden');
     renderModuleOneOutput();
     await finishModuleOneGenerationProgress();
+    if (moduleOneBilingualReady) {
+      setModuleOneMode('bilingual');
+      setFlowStage(2);
+      document.querySelector('#moduleOneBilingualWorkbench').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      notify('已生成草案，并同步生成车载冰箱中英对照稿');
+      return;
+    }
     enterModuleOneReview();
     setFlowStage(2);
     document.querySelector('#clauseEditorWorkbench').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -473,10 +701,10 @@ function downloadModuleOneDraft() {
   URL.revokeObjectURL(url);
 }
 
-async function syncModuleOneDraftToFeishu() {
+async function syncModuleOneDraftToFeishu(event) {
   const markdown = moduleOneDrafts.standardDraft;
   if (!markdown) return notify('请先生成标准草案');
-  const button = document.querySelector('#moduleOneSyncFeishu');
+  const button = event?.currentTarget || document.querySelector('#moduleOneSyncFeishu');
   button.disabled = true;
   const originalContent = button.innerHTML;
   button.innerHTML = '<i data-lucide="loader-circle"></i>正在同步到飞书';
@@ -493,11 +721,16 @@ async function syncModuleOneDraftToFeishu() {
     const link = document.querySelector('#moduleOneOpenFeishu');
     link.href = moduleOneFeishuUrl;
     link.classList.remove('hidden');
+    const editorLink = document.querySelector('#moduleOneOpenFeishuFromEditor');
+    editorLink.href = moduleOneFeishuUrl;
+    editorLink.classList.remove('hidden');
+    setFlowStage(3);
     notify('草案已追加到飞书文档，可打开后在线协同编辑');
   } catch (error) {
     notify(error.message || '同步飞书失败');
   } finally {
-    button.disabled = !moduleOneDrafts.standardDraft;
+    document.querySelector('#moduleOneSyncFeishu').disabled = !moduleOneDrafts.standardDraft;
+    document.querySelector('#moduleOneSyncFeishuFromEditor').disabled = !moduleOneDrafts.standardDraft;
     button.innerHTML = originalContent;
     lucide.createIcons();
   }
@@ -582,6 +815,13 @@ document.querySelector('#moduleOneGenerationDialog').addEventListener('cancel', 
 });
 document.querySelector('#moduleOneDownload').addEventListener('click', downloadModuleOneDraft);
 document.querySelector('#moduleOneSyncFeishu').addEventListener('click', syncModuleOneDraftToFeishu);
+document.querySelector('#moduleOneSyncFeishuFromEditor').addEventListener('click', syncModuleOneDraftToFeishu);
+document.querySelector('#moduleOneGoCollaboration').addEventListener('click', () => {
+  enterModuleOneReview();
+  setFlowStage(3);
+  document.querySelector('#clauseEditorWorkbench').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  notify('已进入第三步：先同步到飞书进行条款协同，再回到平台运行审查');
+});
 document.querySelectorAll('[data-module-one-output]').forEach(button => button.addEventListener('click', () => {
   moduleOneActiveOutput = button.dataset.moduleOneOutput;
   renderModuleOneOutput();
