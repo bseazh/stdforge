@@ -1,0 +1,48 @@
+name: Backup repository to server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stdforge-server-backup
+  cancel-in-progress: true
+
+jobs:
+  backup:
+    name: Sync main to server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the complete repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure the SSH deploy key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          printf 'DEPLOY_TARGET=%s@%s\n' "$DEPLOY_USER" "$DEPLOY_HOST" >> "$GITHUB_ENV"
+
+      - name: Synchronize repository backup
+        env:
+          DEPLOY_PATH: /home/ubuntu/Project/stdforge
+        run: |
+          ssh "$DEPLOY_TARGET" "mkdir -p '$DEPLOY_PATH'"
+          rsync -az --delete \
+            --exclude='.git/index.lock' \
+            --exclude='.git/hooks/' \
+            -e 'ssh -o StrictHostKeyChecking=yes' \
+            ./ "$DEPLOY_TARGET:$DEPLOY_PATH/"
