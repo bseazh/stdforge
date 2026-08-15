@@ -45,7 +45,7 @@ jobs:
             --exclude=.git --exclude=.env --exclude='.env.*' \\
             --exclude=KB --exclude='KDB/.system' \\
             --exclude='KDB/*/text' --exclude='KDB/*/source' \\
-            module2 pdf-parser demo-inputs reference-templates app.js index.html styles.css bilingual.html package.json deploy | ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \\
+            module2 pdf-parser demo-inputs reference-templates/*.md app.js index.html styles.css bilingual.html package.json deploy | ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \\
             -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \\
             '$DEPLOY_TARGET' 'tar -xf - -C \"$DEPLOY_PATH\"'"
 
