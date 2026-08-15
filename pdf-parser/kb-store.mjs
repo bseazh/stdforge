@@ -108,8 +108,9 @@ function rankChunk(chunk, query, queryTerms) {
 function qualityIssues(text) {
   const issues = [];
   const temperatureRange = /环境温度\s*[:：]?\s*(?:为|在|应为)?\s*-?\d+(?:\.\d+)?\s*(?:℃|°\s*C|摄氏度)\s*(?:~|～|至|到|-|—)\s*-?\d+(?:\.\d+)?\s*(?:℃|°\s*C|摄氏度)/m;
+  const humidityValue = /环境湿度\s*[:：]?\s*(?:为|在|应为)?\s*\d+(?:\.\d+)?\s*%/m;
   if (/环境温度\s*[:：]\s*(?:;|；|$)/m.test(text) && !temperatureRange.test(text)) issues.push('环境温度数值缺失');
-  if (/环境湿度\s*[:：]\s*(?:;|；|$)/m.test(text)) issues.push('环境湿度数值缺失');
+  if (/环境湿度\s*[:：]\s*(?:;|；|$)/m.test(text) && !humidityValue.test(text)) issues.push('环境湿度数值缺失');
   return issues;
 }
 
