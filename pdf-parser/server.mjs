@@ -128,6 +128,28 @@ async function sendReviewNotification() {
   return { messageId: sent.messageId, accepted: sent.accepted?.length || 0 };
 }
 
+async function sendSmtpTestNotification() {
+  if (!transporter) throw new Error('服务端未配置 SMTP 邮件通知');
+  const now = new Date();
+  const sent = await transporter.sendMail({
+    from: smtpFrom,
+    to: notificationRecipients,
+    subject: '[StdForge] SMTP 邮件连通性测试',
+    text: [
+      '这是一封由 StdForge 邮件通知测试页发出的连通性测试邮件。',
+      '',
+      `发送时间：${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`,
+      'SMTP 配置已通过服务端发送流程验证。'
+    ].join('\n'),
+    html: `
+      <h2>SMTP 邮件连通性测试</h2>
+      <p>这是一封由 StdForge 邮件通知测试页发出的连通性测试邮件。</p>
+      <p><strong>发送时间：</strong>${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}</p>
+      <p>SMTP 配置已通过服务端发送流程验证。</p>`
+  });
+  return { messageId: sent.messageId, accepted: sent.accepted?.length || 0 };
+}
+
 async function startParse(job) {
   try {
     const result = await parsePdf({
@@ -168,7 +190,7 @@ async function handleApi(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') {
     return json(response, 200, { ok: true, mineruConfigured: Boolean(token), feishuConfigured: Boolean(feishuAppId && feishuAppSecret), smtpConfigured });
   }
-  if (request.method === 'POST' && url.pathname === '/api/notifications/review') {
+  if (request.method === 'POST' && ['/api/notifications/review', '/api/notifications/test'].includes(url.pathname)) {
     if (!smtpConfigured) return json(response, 503, { error: '服务端未配置 SMTP 邮件通知' });
     const elapsed = Date.now() - lastNotificationAt;
     if (elapsed < notificationCooldownMs) {
@@ -176,7 +198,9 @@ async function handleApi(request, response, url) {
     }
     try {
       await readRequestBody(request);
-      const result = await sendReviewNotification();
+      const result = url.pathname.endsWith('/test')
+        ? await sendSmtpTestNotification()
+        : await sendReviewNotification();
       lastNotificationAt = Date.now();
       return json(response, 200, { ok: true, accepted: result.accepted });
     } catch (error) {

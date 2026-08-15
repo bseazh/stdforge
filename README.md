@@ -38,6 +38,8 @@ npm run start:parser
 
 部署环境中的 Caddy 已将主工作台的 `/api/*` 转发到该服务，因此进入“标准编制”后点击“发起评审”即可发送通知。不要把 SMTP 授权码写进前端代码、Kubernetes ConfigMap 或 Git 仓库；生产环境应改用部署平台的 Secret 注入相同环境变量。
 
+独立测试页面位于 `/email-test.html`，会先检查 `/api/health` 的 SMTP 配置状态，再调用 `POST /api/notifications/test` 发送固定模板的连通性测试邮件。
+
 ## MinerU PDF 解析
 
 MinerU 令牌只能通过环境变量传入，禁止写入仓库、前端、脚本或任何文件。解析结果默认存放在被 Git 忽略的 `data/mineru/` 中。

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="StdForge SMTP 邮件通知连通性测试" />
+    <title>StdForge | 邮件通知测试</title>
+    <link rel="stylesheet" href="email-test.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="返回 StdForge 工作台"><span>SF</span><strong>StdForge</strong></a>
+        <span class="environment"><i></i>邮件服务测试</span>
+      </header>
+
+      <section class="intro">
+        <p>系统运维</p>
+        <h1>邮件通知测试</h1>
+        <span>检查 SMTP 服务状态，并向服务端预配置的测试收件人发送一封固定模板邮件。</span>
+      </section>
+
+      <section class="test-grid" aria-label="SMTP 测试控制台">
+        <section class="status-panel">
+          <div class="panel-heading"><div><p>服务状态</p><h2>SMTP 配置</h2></div><button id="refreshStatus" class="icon-button" aria-label="刷新服务状态" title="刷新服务状态">↻</button></div>
+          <div class="status-result loading" id="statusResult" aria-live="polite"><span class="status-dot"></span><div><strong>正在检测服务端配置</strong><small>请求 GET /api/health</small></div></div>
+          <dl class="details-list">
+            <div><dt>发件通道</dt><dd>仅服务端环境变量</dd></div>
+            <div><dt>测试收件人</dt><dd>仅服务端预配置</dd></div>
+            <div><dt>发送保护</dt><dd>固定收件人、服务端限频</dd></div>
+          </dl>
+        </section>
+
+        <section class="send-panel">
+          <div class="panel-heading"><div><p>发送操作</p><h2>连通性测试</h2></div><span class="tag">SMTP</span></div>
+          <div class="mail-preview"><span class="mail-icon">@</span><div><strong>[StdForge] SMTP 邮件连通性测试</strong><small>固定模板，不包含业务数据</small></div></div>
+          <button id="sendTest" class="send-button" disabled>发送测试邮件</button>
+          <p class="hint" id="sendHint">等待服务端状态检查完成。</p>
+        </section>
+      </section>
+
+      <section class="activity-panel">
+        <div class="panel-heading"><div><p>本次会话</p><h2>测试记录</h2></div><span id="requestPath">POST /api/notifications/test</span></div>
+        <ol id="activityLog" class="activity-log" aria-live="polite"><li class="pending"><span></span><div><strong>等待执行测试</strong><small>页面加载后将自动检测 SMTP 状态。</small></div></li></ol>
+      </section>
+    </main>
+    <script src="email-test.js"></script>
+  </body>
+</html>
