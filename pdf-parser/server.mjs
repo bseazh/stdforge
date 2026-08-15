@@ -117,8 +117,11 @@ function findDirectEvidence(question, hits) {
     if (!match) continue;
     const low = match[1].replace(/\s+/g, ' ');
     const high = match[2].replace(/\s+/g, ' ');
+    const start = Math.max(0, match.index - 90);
+    const end = Math.min(hit.text.length, match.index + match[0].length + 130);
     return {
       citationId: index + 1,
+      excerpt: `${start ? '...' : ''}${hit.text.slice(start, end).replace(/\s+/g, ' ').trim()}${end < hit.text.length ? '...' : ''}`,
       answer: `二手洗衣机产品鉴定应在室内进行，环境温度为 ${low}~${high}。`
     };
   }
@@ -460,7 +463,7 @@ async function handleApi(request, response, url) {
         question,
         ...result,
         trace: retrievalTrace(question, hits, directEvidence),
-        citations: hits.map(({ text, ...hit }, index) => ({ id: index + 1, ...hit }))
+        citations: hits.map(({ text, ...hit }, index) => ({ id: index + 1, ...hit, excerpt: directEvidence?.citationId === index + 1 ? directEvidence.excerpt : hit.excerpt }))
       });
     } catch (error) {
       return json(response, 400, { error: error.message });
