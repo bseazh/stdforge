@@ -111,6 +111,7 @@ npm run start:parser
 | `SMTP_FROM`、`NOTIFICATION_RECIPIENTS` | 邮件发件人和固定评审组 | 仅邮件通知需要 |
 | `NOTIFICATION_TEST_ACCESS_TOKEN` | 解锁测试收件人查看、添加、勾选和发信 | 邮件测试页需要 |
 | `FEISHU_APP_ID`、`FEISHU_APP_SECRET` | 将解析后的 Markdown 追加到飞书文档 | 仅飞书同步需要 |
+| `FEISHU_DOCUMENT_URL` | 模块一“同步到飞书协同”的固定目标知识库或 Docx 链接 | 草案同步需要；服务端只追加、不覆盖 |
 
 建议将 SMTP 配置保存在 `.env.smtp.local`，将 MinerU / 飞书配置保存在 `.env.local`。二者均已被 Git 忽略。
 

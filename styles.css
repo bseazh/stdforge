@@ -53,3 +53,9 @@ dialog { width:min(560px,calc(100% - 30px)); padding:0; border:0; border-radius:
 .module-one-pdf-preview iframe { display:block; width:100%; height:min(690px, calc(100vh - 185px)); margin-top:14px; border:1px solid #d6e0e0; background:#f1f4f4; }
 @media (max-width: 1100px) { .module-one-comparison-grid { grid-template-columns:1fr; }.module-one-comparison-card { min-height:210px; }.module-one-template-library { grid-template-columns:repeat(3, minmax(0, 1fr)); max-height:none; } }
 @media (max-width: 760px) { .module-one-template-library { grid-template-columns:1fr; }.module-one-comparison { padding:15px; }.module-one-comparison-card { min-height:190px; }.module-one-pdf-preview { width:calc(100vw - 20px); }.module-one-pdf-preview iframe { height:calc(100vh - 175px); } }
+
+/* Module one keeps only generated clauses editable; outline previews are fixed demo content. */
+.module-one-output-tabs #moduleOneDownload { margin-left:auto; }
+.module-one-output-tabs #moduleOneSyncFeishu,.module-one-output-tabs #moduleOneOpenFeishu { margin-left:0; }
+.editor-document textarea[readonly] { border-color:#dbe3e5; background:#f8fafb; color:#52636c; cursor:default; }
+.editor-readonly-note { margin:18px 0 0; color:#71828a; font-size:11px; }

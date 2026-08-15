@@ -163,6 +163,7 @@ const llmModel = process.env.LLM_MODEL;
 const policyModelConfig = { baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel };
 const feishuAppId = process.env.FEISHU_APP_ID;
 const feishuAppSecret = process.env.FEISHU_APP_SECRET;
+const feishuDocumentUrl = process.env.FEISHU_DOCUMENT_URL;
 const feishuApprovalCode = process.env.FEISHU_APPROVAL_CODE;
 const feishuInitiatorOpenId = process.env.FEISHU_INITIATOR_OPEN_ID;
 const smtpHost = process.env.SMTP_HOST;
@@ -683,6 +684,7 @@ async function handleApi(request, response, url) {
       llmConfigured: Boolean(llmBaseUrl && llmApiKey && llmModel),
       knowledgeBase: kb.stats(),
       feishuConfigured: Boolean(feishuAppId && feishuAppSecret),
+      feishuDocumentConfigured: Boolean(feishuDocumentUrl),
       feishuApprovalConfigured: Boolean(feishuApprovalCode && feishuInitiatorOpenId),
       smtpConfigured,
       smtpTestManagementConfigured: Boolean(notificationTestAccessToken)
@@ -757,6 +759,24 @@ async function handleApi(request, response, url) {
       return json(response, 200, { ok: true, ...result, generatedAt: new Date().toISOString() });
     } catch (error) {
       return json(response, 400, { error: error.message });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/drafts/sync/feishu') {
+    if (!feishuAppId || !feishuAppSecret) return json(response, 503, { error: '服务端未配置飞书应用凭证' });
+    if (!feishuDocumentUrl) return json(response, 503, { error: '服务端未配置 FEISHU_DOCUMENT_URL 目标飞书文档链接' });
+    if (!/^https:\/\/[^/]*feishu\.cn\/(wiki|docx)\//.test(feishuDocumentUrl)) return json(response, 503, { error: 'FEISHU_DOCUMENT_URL 不是有效的飞书知识库或 Docx 链接' });
+    try {
+      const payload = await readJsonRequest(request);
+      const markdown = String(payload.markdown || '').trim();
+      if (!markdown) throw new Error('缺少待同步的标准草案内容');
+      const sourceName = String(payload.sourceName || '未命名研发输入').slice(0, 240);
+      const templateName = String(payload.templateName || '未命名模板').slice(0, 240);
+      const marker = createHash('sha256').update(`${feishuDocumentUrl}\n${markdown}`).digest('hex').slice(0, 16);
+      const content = `## StdForge 模块一标准草案 · ${marker}\n\n- 研发输入：${sourceName}\n- 参考模板：${templateName}\n- 同步时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}\n- 同步方式：追加写入，不覆盖飞书内既有内容\n\n${markdown.slice(0, 36_000)}`;
+      const result = await appendToFeishuDocument({ appId: feishuAppId, appSecret: feishuAppSecret, docUrl: feishuDocumentUrl, markdown: content });
+      return json(response, 200, { ok: true, docUrl: feishuDocumentUrl, marker, syncedAt: new Date().toISOString(), ...result });
+    } catch (error) {
+      return json(response, 502, { error: error.message });
     }
   }
   if (request.method === 'GET' && url.pathname === '/api/kb') {

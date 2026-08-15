@@ -56,6 +56,22 @@ let moduleOneTemplateItem = null;
 let moduleOneUploadedTemplateUrl = '';
 let moduleOneDrafts = {};
 let moduleOneActiveOutput = 'standardDraft';
+let moduleOneFeishuUrl = '';
+let activeEditorSection = 'safety';
+
+const editorOutlineSections = {
+  preface: { label: '前言', title: '前言', body: '本文件按照 GB/T 1.1—2020 给出的规则起草。本演示稿由研发技术要求自动整理后形成，后续由标准化工程师确认。', subheading: '编制说明', detail: '本章节为固定演示文案，用于说明草案来源与人工确认责任。' },
+  scope: { label: '1 范围', title: '1 范围', body: '本文件规定了二手洗衣机鉴定的技术要求、鉴定方法、鉴定结论与记录要求。本文件适用于进入二手流通环节的家用洗衣机。', subheading: '适用边界', detail: '不适用于无法安全通电、缺少关键部件或无法识别型号的产品。' },
+  references: { label: '2 规范性引用文件', title: '2 规范性引用文件', body: '下列文件中的内容通过文中的规范性引用而构成本文件必不可少的条款。凡是注日期的引用文件，仅所注日期的版本适用于本文件。', subheading: '引用清单', detail: 'GB/T 4706.1—2024 家用和类似用途电器的安全 第 1 部分：通用要求。' },
+  terms: { label: '3 术语和定义', title: '3 术语和定义', body: '二手洗衣机：已进入使用或流通环节，经过检测、鉴定后可再次进入交易或再利用环节的洗衣机产品。', subheading: '鉴定结论', detail: '符合本文件技术要求的产品，鉴定结论为“合格”。' },
+  process: { label: '4 鉴定流程和要求', title: '4 鉴定流程和要求', body: '鉴定应包括受理、信息核验、外观检查、安全检查、性能检查、结论判定和记录归档等步骤。', subheading: '流程记录', detail: '每个步骤应保留产品型号、检查人、检查时间和结论。' },
+  conditions: { label: '5 鉴定作业条件', title: '5 鉴定作业条件', body: '鉴定场所应具备安全供电、通风、照明和必要的测试条件。环境温度宜为 15 ℃ 至 35 ℃。', subheading: '作业安全', detail: '鉴定前应确认产品断电状态，并检查电源线和接地条件。' },
+  organization: { label: '6 鉴定机构和人员', title: '6 鉴定机构和人员', body: '鉴定机构应具备与鉴定活动相适应的场地、设备和质量管理能力。鉴定人员应经过相关培训并保留能力记录。', subheading: '复核要求', detail: '高风险问题应由复核人员独立确认后形成结论。' },
+  requirements: { label: '7 鉴定技术要求', title: '7 鉴定技术要求', body: '产品应满足安全性、功能性和主要性能要求。每项检查应有明确的检查方法和判定依据。', subheading: '章节提示', detail: '点击“7.2 安全性检查”或“7.4 性能检查”查看对应条款。' },
+  safety: { label: '7 鉴定技术要求', title: '7.2 安全性检查', body: '二手洗衣机的安全性应符合 GB/T 4706.1—2024 的规定。', subheading: '7.2.1 检查方法', detail: '请填写检查步骤、使用的仪器或引用的试验方法。', editable: true, alert: true },
+  performance: { label: '7 鉴定技术要求', title: '7.4 性能检查', body: '洗涤、脱水、排水和控制功能应正常；运行过程中不应出现影响使用安全的异常噪声、振动或故障提示。', subheading: '7.4.1 检查方法', detail: '按产品使用说明书进行通电试运行，并记录功能检查结果。' },
+  appendix: { label: '附录 A（规范性）', title: '附录 A 鉴定记录表', body: '鉴定记录应至少包括产品信息、外观检查、安全检查、性能检查、判定结论、鉴定人员和复核人员。', subheading: '记录要求', detail: '记录表应与本次鉴定任务唯一关联，并保留可追溯编号。' }
+};
 
 function moduleOneMarkdownHtml(markdown) {
   const lines = String(markdown || '').split(/\r?\n/);
@@ -266,6 +282,7 @@ async function parseModuleOneTemplate() {
 function renderModuleOneOutput() {
   document.querySelector('#moduleOneMarkdown').innerHTML = moduleOneMarkdownHtml(moduleOneDrafts[moduleOneActiveOutput] || '');
   document.querySelectorAll('[data-module-one-output]').forEach(button => button.classList.toggle('active', button.dataset.moduleOneOutput === moduleOneActiveOutput));
+  document.querySelector('#moduleOneSyncFeishu').disabled = !moduleOneDrafts.standardDraft;
   updateModuleOneComparison();
 }
 
@@ -284,6 +301,8 @@ async function generateModuleOneDrafts() {
     if (!response.ok) throw new Error(result.error || '草案生成失败');
     moduleOneDrafts = { standardDraft: result.standardDraft, compilationNotes: result.compilationNotes, preResearchReport: result.preResearchReport };
     moduleOneActiveOutput = 'standardDraft';
+    moduleOneFeishuUrl = '';
+    document.querySelector('#moduleOneOpenFeishu').classList.add('hidden');
     document.querySelector('#moduleOneOutput').classList.remove('hidden');
     renderModuleOneOutput();
     notify(result.mode === 'llm' ? 'LLM 已生成三类草案' : '已生成三类演示草案');
@@ -304,6 +323,53 @@ function downloadModuleOneDraft() {
   link.download = moduleOneActiveOutput + '-' + moduleOneSourceName.replace(/\.[^.]+$/, '') + '.md';
   link.click();
   URL.revokeObjectURL(url);
+}
+
+async function syncModuleOneDraftToFeishu() {
+  const markdown = moduleOneDrafts.standardDraft;
+  if (!markdown) return notify('请先生成标准草案');
+  const button = document.querySelector('#moduleOneSyncFeishu');
+  button.disabled = true;
+  const originalContent = button.innerHTML;
+  button.innerHTML = '<i data-lucide="loader-circle"></i>正在同步到飞书';
+  lucide.createIcons();
+  try {
+    const response = await fetch('/api/drafts/sync/feishu', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceName: moduleOneSourceName, templateName: moduleOneTemplateName, markdown })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '同步飞书失败');
+    moduleOneFeishuUrl = result.docUrl;
+    const link = document.querySelector('#moduleOneOpenFeishu');
+    link.href = moduleOneFeishuUrl;
+    link.classList.remove('hidden');
+    notify('草案已追加到飞书文档，可打开后在线协同编辑');
+  } catch (error) {
+    notify(error.message || '同步飞书失败');
+  } finally {
+    button.disabled = !moduleOneDrafts.standardDraft;
+    button.innerHTML = originalContent;
+    lucide.createIcons();
+  }
+}
+
+function renderEditorSection(sectionId) {
+  const section = editorOutlineSections[sectionId];
+  if (!section) return;
+  activeEditorSection = sectionId;
+  document.querySelectorAll('[data-editor-section]').forEach(button => button.classList.toggle('active', button.dataset.editorSection === sectionId));
+  document.querySelector('#editorSectionLabel').textContent = section.label;
+  document.querySelector('#editorSectionTitle').textContent = section.title;
+  const editor = document.querySelector('#clauseEditor');
+  editor.value = section.body;
+  editor.readOnly = !section.editable;
+  document.querySelector('#editorSubheading').textContent = section.subheading;
+  document.querySelector('#editorPlaceholder').textContent = section.detail;
+  document.querySelector('#editorAlert').classList.toggle('hidden', !section.alert);
+  document.querySelector('#applySuggestion').classList.toggle('hidden', !section.editable);
+  document.querySelector('#editorReadonlyNote').classList.toggle('hidden', Boolean(section.editable));
 }
 
 function renderIssue(index) {
@@ -363,10 +429,12 @@ document.querySelector('#moduleOneTemplateFile').addEventListener('change', even
 document.querySelector('#moduleOneParseTemplate').addEventListener('click', parseModuleOneTemplate);
 document.querySelector('#moduleOneGenerate').addEventListener('click', generateModuleOneDrafts);
 document.querySelector('#moduleOneDownload').addEventListener('click', downloadModuleOneDraft);
+document.querySelector('#moduleOneSyncFeishu').addEventListener('click', syncModuleOneDraftToFeishu);
 document.querySelectorAll('[data-module-one-output]').forEach(button => button.addEventListener('click', () => {
   moduleOneActiveOutput = button.dataset.moduleOneOutput;
   renderModuleOneOutput();
 }));
+document.querySelectorAll('[data-editor-section]').forEach(button => button.addEventListener('click', () => renderEditorSection(button.dataset.editorSection)));
 document.querySelector('#moduleOnePreviewClose').addEventListener('click', () => document.querySelector('#moduleOnePreviewDialog').close());
 document.querySelector('#moduleOnePreviewDismiss').addEventListener('click', () => document.querySelector('#moduleOnePreviewDialog').close());
 document.querySelector('#moduleOnePdfPreviewClose').addEventListener('click', () => document.querySelector('#moduleOnePdfPreviewDialog').close());
@@ -425,11 +493,17 @@ document.querySelector('#addComment').addEventListener('click', async event => {
     lucide.createIcons();
   }
 });
-document.querySelector('#saveClause').addEventListener('click', () => notify('条款 v0.3 已保存，修订留痕已更新'));
-document.querySelector('#applySuggestion').addEventListener('click', () => { document.querySelector('#clauseEditor').value += ' 检查结果应符合附录 A 表 A.1 的要求。'; notify('已应用 AI 建议，请人工确认后保存'); });
+document.querySelector('#saveClause').addEventListener('click', () => {
+  if (!editorOutlineSections[activeEditorSection].editable) return notify('当前章节为固定演示文案，无需保存修订');
+  notify('条款 v0.3 已保存，修订留痕已更新');
+});
+document.querySelector('#applySuggestion').addEventListener('click', () => {
+  if (!editorOutlineSections[activeEditorSection].editable) return;
+  document.querySelector('#clauseEditor').value += ' 检查结果应符合附录 A 表 A.1 的要求。';
+  notify('已应用 AI 建议，请人工确认后保存');
+});
 
 const dialog = document.querySelector('#importDialog');
-document.querySelector('#openImport').addEventListener('click', () => dialog.showModal());
 document.querySelector('#standardFile').addEventListener('change', event => {
   const label = document.querySelector('.dropzone strong');
   if (event.target.files[0]) label.textContent = event.target.files[0].name;
@@ -441,19 +515,9 @@ document.querySelector('#importStandard').addEventListener('click', event => {
   notify('文件已入库：正在识别目录、条款、表格和引用文件');
 });
 
-document.querySelector('#runFlow').addEventListener('click', () => {
-  let stage = 0;
-  const messages = ['已采集公开标准元数据', '已解析为 24 个结构单元', '已完成规则审核', '已发起专家评审', '已生成发布归档包'];
-  const timer = window.setInterval(() => {
-    setFlowStage(stage);
-    notify(messages[stage]);
-    stage += 1;
-    if (stage === messages.length) window.clearInterval(timer);
-  }, 750);
-});
-
 hydrateParsedStandard();
 setModuleOneMode('ai');
+renderEditorSection(activeEditorSection);
 loadModuleOneTemplates();
 loadModuleOneDemos();
 const initialView = window.location.hash.slice(1);
