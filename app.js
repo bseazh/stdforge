@@ -62,7 +62,8 @@ let moduleOneUploadedTemplateUrl = '';
 let moduleOnePdfPreviewRequest = 0;
 let moduleOneDrafts = {};
 let moduleOneActiveOutput = 'standardDraft';
-let moduleOneFeishuUrl = '';
+const moduleOneFeishuDocumentUrl = 'https://ucndlsboqe9t.feishu.cn/wiki/CxQHwyuf8ieMWPkKdmfcnb6tndh';
+let moduleOneFeishuUrl = moduleOneFeishuDocumentUrl;
 let moduleOneGenerationTimer = null;
 let moduleOneGenerationStartedAt = 0;
 let moduleOneGenerationActive = false;
@@ -338,6 +339,15 @@ function renderModuleOneBilingual() {
   }
   lucide.createIcons();
   bindModuleOneBilingualScroll();
+}
+
+function renderModuleOneFeishuLinks() {
+  ['#moduleOneOpenFeishu', '#moduleOneOpenFeishuFromEditor'].forEach(selector => {
+    const link = document.querySelector(selector);
+    if (!link) return;
+    link.href = moduleOneFeishuUrl || moduleOneFeishuDocumentUrl;
+    link.classList.remove('hidden');
+  });
 }
 
 function bindModuleOneBilingualScroll() {
@@ -697,9 +707,8 @@ async function generateModuleOneDrafts() {
     moduleOneDrafts = { standardDraft: result.standardDraft, compilationNotes: result.compilationNotes, preResearchReport: result.preResearchReport };
     moduleOneActiveOutput = 'standardDraft';
     moduleOneBilingualReady = shouldAutoGenerateBilingual();
-    moduleOneFeishuUrl = '';
-    document.querySelector('#moduleOneOpenFeishu').classList.add('hidden');
-    document.querySelector('#moduleOneOpenFeishuFromEditor').classList.add('hidden');
+    moduleOneFeishuUrl = moduleOneFeishuDocumentUrl;
+    renderModuleOneFeishuLinks();
     document.querySelector('#moduleOneOutput').classList.remove('hidden');
     renderModuleOneOutput();
     await finishModuleOneGenerationProgress();
@@ -744,12 +753,7 @@ async function syncModuleOneDraftToFeishu(event) {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || '同步飞书失败');
     moduleOneFeishuUrl = result.docUrl;
-    const link = document.querySelector('#moduleOneOpenFeishu');
-    link.href = moduleOneFeishuUrl;
-    link.classList.remove('hidden');
-    const editorLink = document.querySelector('#moduleOneOpenFeishuFromEditor');
-    editorLink.href = moduleOneFeishuUrl;
-    editorLink.classList.remove('hidden');
+    renderModuleOneFeishuLinks();
     setFlowStage(3);
     notify('草案已追加到飞书文档，可打开后在线协同编辑');
   } catch (error) {
@@ -977,6 +981,7 @@ document.querySelector('#importStandard').addEventListener('click', event => {
 });
 
 hydrateParsedStandard();
+renderModuleOneFeishuLinks();
 setModuleOneMode('ai');
 renderEditorSection(activeEditorSection);
 loadModuleOneTemplates();
