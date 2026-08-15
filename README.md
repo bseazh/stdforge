@@ -13,6 +13,7 @@
   <a href="https://stdforge.hehaizhao.site">在线体验</a> ·
   <a href="docs/PRD.md">产品需求文档</a> ·
   <a href="docs/IMPLEMENTATION_PLAN.md">实施蓝图</a> ·
+  <a href="docs/MODULE_1_TECHNICAL_SOLUTION.md">模块一技术方案</a> ·
   <a href="https://my.feishu.cn/wiki/IG9ewEqHqiOmAiktf5LcQbrQnpg">团队需求文档（飞书权限内访问）</a>
 </p>
 
