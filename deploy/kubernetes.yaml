@@ -16,6 +16,10 @@ data:
       @private path /.git /.git/* /.github /.github/*
       respond @private 404
 
+      handle /api/* {
+        reverse_proxy http://119.29.242.172:4175
+      }
+
       file_server
     }
 ---

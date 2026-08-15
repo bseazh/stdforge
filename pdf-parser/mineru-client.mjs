@@ -5,12 +5,49 @@ import { join } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 const API_BASE = 'https://mineru.net/api/v4';
+const RESULT_DOWNLOAD_ATTEMPTS = 3;
+
+export class ResultDownloadError extends Error {
+  constructor(cause) {
+    super('MinerU 已完成解析，但下载结果失败，可重试');
+    this.name = 'ResultDownloadError';
+    this.cause = cause;
+  }
+}
+
+const wait = milliseconds => new Promise(resolveTimer => setTimeout(resolveTimer, milliseconds));
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, options);
   const body = await response.json().catch(() => ({}));
   if (!response.ok || body.code !== 0) throw new Error(body.msg || `MinerU HTTP ${response.status}`);
   return body;
+}
+
+export async function downloadResultArchive(url, onStatus = () => {}) {
+  let lastError;
+  for (let attempt = 1; attempt <= RESULT_DOWNLOAD_ATTEMPTS; attempt += 1) {
+    onStatus({
+      state: 'downloading',
+      message: `MinerU 已完成解析，正在下载结果包（${attempt}/${RESULT_DOWNLOAD_ATTEMPTS}）`
+    });
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Result download failed: HTTP ${response.status}`);
+      return Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      lastError = error;
+      if (attempt < RESULT_DOWNLOAD_ATTEMPTS) {
+        const delay = 1000 * 2 ** (attempt - 1);
+        onStatus({
+          state: 'downloading',
+          message: `结果包下载连接中断，${delay / 1000} 秒后自动重试（${attempt}/${RESULT_DOWNLOAD_ATTEMPTS}）`
+        });
+        await wait(delay);
+      }
+    }
+  }
+  throw new ResultDownloadError(lastError);
 }
 
 export async function parsePdf({ token, pdfPath, fileName, outputDir, onStatus = () => {} }) {
@@ -54,10 +91,9 @@ export async function parsePdf({ token, pdfPath, fileName, outputDir, onStatus =
 
   onStatus({ state: 'converting', message: '正在整理解析结果', batchId });
   await mkdir(outputDir, { recursive: true });
-  const archiveResponse = await fetch(resultItem.full_zip_url);
-  if (!archiveResponse.ok) throw new Error(`Result download failed: HTTP ${archiveResponse.status}`);
+  const archive = await downloadResultArchive(resultItem.full_zip_url, onStatus);
   const archivePath = join(outputDir, 'mineru-result.zip');
-  await writeFile(archivePath, Buffer.from(await archiveResponse.arrayBuffer()));
+  await writeFile(archivePath, archive);
   await execFileAsync('/usr/bin/unzip', ['-oq', archivePath, '-d', outputDir]);
   const markdownPath = join(outputDir, 'full.md');
   const markdown = await readFile(markdownPath, 'utf8');

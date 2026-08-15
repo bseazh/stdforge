@@ -44,5 +44,51 @@ jobs:
           rsync -az --delete \
             --exclude='.git/index.lock' \
             --exclude='.git/hooks/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
             -e 'ssh -o StrictHostKeyChecking=yes' \
             ./ "$DEPLOY_TARGET:$DEPLOY_PATH/"
+
+      - name: Provision parser credentials on the deployment server
+        env:
+          DEPLOY_PATH: /home/ubuntu/Project/stdforge
+          MINERU_TOKEN: ${{ secrets.MINERU_TOKEN }}
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+        run: |
+          test -n "$MINERU_TOKEN"
+          test -n "$FEISHU_APP_ID"
+          test -n "$FEISHU_APP_SECRET"
+          {
+            printf 'MINERU_TOKEN=%s\n' "$MINERU_TOKEN"
+            printf 'FEISHU_APP_ID=%s\n' "$FEISHU_APP_ID"
+            printf 'FEISHU_APP_SECRET=%s\n' "$FEISHU_APP_SECRET"
+          } | base64 | ssh "$DEPLOY_TARGET" "base64 -d > '$DEPLOY_PATH/.env.local' && chmod 600 '$DEPLOY_PATH/.env.local'"
+
+      - name: Restart the PDF parser service
+        env:
+          DEPLOY_PATH: /home/ubuntu/Project/stdforge
+        run: |
+          ssh "$DEPLOY_TARGET" "DEPLOY_PATH='$DEPLOY_PATH' sh -s" <<'REMOTE'
+          set -eu
+          cd "$DEPLOY_PATH"
+          mkdir -p pdf-parser/.runtime
+          if [ -f pdf-parser/.runtime/server.pid ]; then
+            previous_pid=$(cat pdf-parser/.runtime/server.pid)
+            if kill -0 "$previous_pid" 2>/dev/null; then kill "$previous_pid"; fi
+          fi
+          nohup env HOST=0.0.0.0 PORT=4175 node pdf-parser/server.mjs > pdf-parser/.runtime/server.log 2>&1 &
+          echo $! > pdf-parser/.runtime/server.pid
+          for attempt in 1 2 3 4 5; do
+            sleep 2
+            if curl -fsS http://127.0.0.1:4175/api/health; then exit 0; fi
+          done
+          cat pdf-parser/.runtime/server.log
+          exit 1
+          REMOTE
+
+      - name: Apply the online reverse proxy configuration
+        env:
+          DEPLOY_PATH: /home/ubuntu/Project/stdforge
+        run: |
+          ssh "$DEPLOY_TARGET" "kubectl apply -f '$DEPLOY_PATH/deploy/kubernetes.yaml' && kubectl -n stdforge rollout restart deployment/stdforge-web && kubectl -n stdforge rollout status deployment/stdforge-web --timeout=120s"

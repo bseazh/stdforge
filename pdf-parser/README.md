@@ -13,6 +13,12 @@ PORT=4174 MINERU_TOKEN='<your-token>' node pdf-parser/server.mjs
 
 浏览器访问 `http://127.0.0.1:4174`。
 
+线上部署时，解析服务需要同时满足以下条件：
+
+- 解析服务以 `HOST=0.0.0.0 PORT=4175 node pdf-parser/server.mjs` 运行；
+- 网关将 `/api/*` 反向代理到该服务；
+- `MINERU_TOKEN`、`FEISHU_APP_ID`、`FEISHU_APP_SECRET` 只以部署平台的 Secret 注入，绝不提交到 Git。
+
 ## 输入输出
 
 输入：单个 PDF 文件，演示限制为 30 MB。
@@ -23,6 +29,8 @@ PORT=4174 MINERU_TOKEN='<your-token>' node pdf-parser/server.mjs
 - 用户上传的原始 PDF；
 - MinerU 生成的 Markdown；
 - 包含内容列表、版面 JSON、模型 JSON、图片和 Markdown 的完整 ZIP。
+
+MinerU 返回 `done` 后，结果 ZIP 会从其 CDN 下载。网络中断或 CDN 短暂重置时，服务会自动重试 3 次（1 秒、2 秒退避）；三次都失败会返回“MinerU 已完成解析，但下载结果失败，可重试”，而不会误报为 PDF 解析失败。
 
 令牌只从 `MINERU_TOKEN` 环境变量读取。上传文件和解析结果保存在 `pdf-parser/.runtime/`，该目录被 Git 忽略。
 

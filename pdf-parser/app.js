@@ -79,14 +79,14 @@ function progressFor(state, progress) {
     if (progress?.total_pages) return Math.min(82, 35 + Math.round(progress.extracted_pages / progress.total_pages * 47));
     return 58;
   }
-  if (state === 'converting') return 88;
+  if (state === 'converting' || state === 'downloading') return 88;
   if (state === 'done') return 100;
   return 0;
 }
 
 function updateProgress(job) {
   const value = progressFor(job.state, job.progress);
-  const labels = { queued: '任务已创建', uploading: '正在上传', 'waiting-file': '等待文件', pending: '等待解析', running: '正在解析', converting: '正在整理', done: '解析完成' };
+  const labels = { queued: '任务已创建', uploading: '正在上传', 'waiting-file': '等待文件', pending: '等待解析', running: '正在解析', converting: '正在整理', downloading: '正在下载结果', done: '解析完成' };
   elements.progressTitle.textContent = labels[job.state] || '处理中';
   elements.progressMessage.textContent = job.message || '请稍候';
   elements.progressValue.textContent = `${value}%`;
@@ -150,14 +150,14 @@ async function syncToFeishu() {
   }
 }
 
-function showError(message) {
+function showError(message, retryable = false) {
   elements.progressPanel.classList.add('hidden');
   elements.resultEmpty.classList.add('hidden');
   elements.errorPanel.classList.remove('hidden');
   elements.errorMessage.textContent = message;
-  elements.fileState.textContent = '解析失败';
+  elements.fileState.textContent = retryable ? '结果下载失败' : '解析失败';
   elements.parseButton.disabled = false;
-  elements.parseButton.innerHTML = '<i data-lucide="refresh-cw"></i>重试解析';
+  elements.parseButton.innerHTML = retryable ? '<i data-lucide="refresh-cw"></i>重新解析' : '<i data-lucide="refresh-cw"></i>重试解析';
   lucide.createIcons();
 }
 
@@ -169,7 +169,7 @@ async function pollJob() {
     currentJob = job;
     updateProgress(job);
     if (job.state === 'done') return showDone(job);
-    if (job.state === 'failed') return showError(job.error || 'MinerU 解析失败');
+    if (job.state === 'failed') return showError(job.error || 'MinerU 解析失败', job.retryable === true);
     pollTimer = window.setTimeout(pollJob, 1800);
   } catch (error) {
     showError(error.message);
@@ -219,7 +219,7 @@ fetch('/api/health').then(response => response.json()).then(health => {
   elements.serverState.querySelector('em').textContent = health.mineruConfigured ? (health.feishuConfigured ? 'MinerU / 飞书已连接' : 'MinerU 已连接，飞书未配置') : '缺少 MinerU 配置';
 }).catch(() => {
   elements.serverState.className = 'server-state error';
-  elements.serverState.querySelector('em').textContent = '本地服务未启动';
+  elements.serverState.querySelector('em').textContent = '解析服务不可用';
 });
 
 lucide.createIcons();

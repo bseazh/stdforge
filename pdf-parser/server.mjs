@@ -5,12 +5,13 @@ import { createReadStream } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { parsePdf } from './mineru-client.mjs';
+import { parsePdf, ResultDownloadError } from './mineru-client.mjs';
 import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
 
 const root = resolve(import.meta.dirname);
 const runtimeRoot = join(root, '.runtime');
 const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || '127.0.0.1';
 const maxFileSize = 30 * 1024 * 1024;
 const jobs = new Map();
 
@@ -63,7 +64,9 @@ function publicJob(job) {
     progress: job.progress,
     createdAt: job.createdAt,
     markdown: job.state === 'done' ? job.markdown : undefined,
-    error: job.error
+    error: job.error,
+    failureStage: job.failureStage,
+    retryable: job.retryable === true
   };
 }
 
@@ -78,7 +81,19 @@ async function startParse(job) {
     });
     Object.assign(job, result, { state: 'done', message: '解析完成' });
   } catch (error) {
-    Object.assign(job, { state: 'failed', message: '解析失败', error: error.message });
+    const resultDownloadFailed = error instanceof ResultDownloadError;
+    if (resultDownloadFailed) {
+      console.error('MinerU result archive download failed:', error.cause?.cause?.code || error.cause?.message || error.cause || error.message);
+    } else {
+      console.error('MinerU parse failed:', error.cause?.code || error.message);
+    }
+    Object.assign(job, {
+      state: 'failed',
+      message: resultDownloadFailed ? error.message : '解析失败',
+      error: error.message,
+      failureStage: resultDownloadFailed ? 'result-download' : 'parse',
+      retryable: resultDownloadFailed
+    });
   }
 }
 
@@ -178,8 +193,8 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`StdForge PDF Parser: http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`StdForge PDF Parser: http://${host}:${port}`);
   console.log(`MinerU: ${token ? 'configured' : 'missing MINERU_TOKEN'}`);
   console.log(`Feishu MCP: ${feishuAppId && feishuAppSecret ? 'configured' : 'missing FEISHU_APP_ID or FEISHU_APP_SECRET'}`);
 });
