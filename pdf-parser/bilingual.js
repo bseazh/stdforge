@@ -144,14 +144,22 @@ function renderTranslation() {
   elements.englishEditor.classList.toggle('hidden', view !== 'english');
   elements.versionInfo.textContent = `中文 v${zhVersion} · 英文 v${enVersion}${englishStale ? ' · 英文待更新' : ''}`;
   elements.segmentList.innerHTML = translation.segments.map(segment => `
-    <article class="parallel-row" data-id="${segment.id}">
-      <textarea data-lang="zh">${escapeHtml(segment.zh)}</textarea>
+    <article class="parallel-row doc-row" data-id="${segment.id}">
+      <section class="doc-page zh-doc" aria-label="中文段落">
+        <span class="doc-page-label">中文</span>
+        <div class="doc-block" data-lang="zh" contenteditable="true" spellcheck="false">${escapeHtml(segment.zh)}</div>
+      </section>
       <i aria-hidden="true"></i>
-      <textarea data-lang="en">${escapeHtml(segment.en)}</textarea>
+      <section class="doc-page en-doc" aria-label="英文段落">
+        <span class="doc-page-label">English</span>
+        <div class="doc-block" data-lang="en" contenteditable="true" spellcheck="false">${escapeHtml(segment.en)}</div>
+      </section>
     </article>
   `).join('');
   elements.englishEditor.innerHTML = translation.segments.map(segment => `
-    <textarea data-id="${segment.id}">${escapeHtml(segment.en)}</textarea>
+    <section class="doc-page english-only-page">
+      <div class="doc-block" data-id="${segment.id}" contenteditable="true" spellcheck="false">${escapeHtml(segment.en)}</div>
+    </section>
   `).join('');
   bindSegmentInputs();
 }
@@ -159,16 +167,16 @@ function renderTranslation() {
 function bindSegmentInputs() {
   elements.segmentList.querySelectorAll('.parallel-row').forEach(row => {
     row.querySelector('[data-lang="zh"]').addEventListener('input', event => {
-      translation.segments.find(segment => segment.id === row.dataset.id).zh = event.target.value;
+      translation.segments.find(segment => segment.id === row.dataset.id).zh = event.currentTarget.innerText.trim();
       markEnglishStale();
     });
     row.querySelector('[data-lang="en"]').addEventListener('input', event => {
-      translation.segments.find(segment => segment.id === row.dataset.id).en = event.target.value;
+      translation.segments.find(segment => segment.id === row.dataset.id).en = event.currentTarget.innerText.trim();
     });
   });
-  elements.englishEditor.querySelectorAll('textarea').forEach(textarea => {
-    textarea.addEventListener('input', event => {
-      translation.segments.find(segment => segment.id === textarea.dataset.id).en = event.target.value;
+  elements.englishEditor.querySelectorAll('[contenteditable]').forEach(block => {
+    block.addEventListener('input', event => {
+      translation.segments.find(segment => segment.id === block.dataset.id).en = event.currentTarget.innerText.trim();
     });
   });
 }
