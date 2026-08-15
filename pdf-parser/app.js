@@ -8,7 +8,7 @@ const elements = {
   sourceResult: document.querySelector('#sourceResult'), errorPanel: document.querySelector('#errorPanel'), errorMessage: document.querySelector('#errorMessage'),
   downloadBar: document.querySelector('#downloadBar'), downloadOriginal: document.querySelector('#downloadOriginal'), downloadMarkdown: document.querySelector('#downloadMarkdown'),
   downloadArchive: document.querySelector('#downloadArchive'), resultMeta: document.querySelector('#resultMeta'), serverState: document.querySelector('#serverState'), toast: document.querySelector('#toast'),
-  feishuBar: document.querySelector('#feishuBar'), feishuDocUrl: document.querySelector('#feishuDocUrl'), syncFeishu: document.querySelector('#syncFeishu'), feishuMessage: document.querySelector('#feishuMessage'), submitApproval: document.querySelector('#submitApproval'), approvalLink: document.querySelector('#approvalLink'), checkApproval: document.querySelector('#checkApproval'),
+  feishuBar: document.querySelector('#feishuBar'), feishuDocUrl: document.querySelector('#feishuDocUrl'), syncFeishu: document.querySelector('#syncFeishu'), openFeishuDoc: document.querySelector('#openFeishuDoc'), feishuMessage: document.querySelector('#feishuMessage'), submitApproval: document.querySelector('#submitApproval'), approvalLink: document.querySelector('#approvalLink'), checkApproval: document.querySelector('#checkApproval'),
   kbModule: document.querySelector('#kbModule'), fileBadge: document.querySelector('#fileBadge'), previewMessage: document.querySelector('#previewMessage'), kbResult: document.querySelector('#kbResult')
 };
 
@@ -16,6 +16,16 @@ let selectedFile;
 let previewUrl;
 let currentJob;
 let pollTimer;
+
+const lastFeishuDocumentKey = 'stdforge.lastFeishuDocumentUrl';
+
+function rememberFeishuDocument(docUrl) {
+  if (!docUrl) return;
+  elements.feishuDocUrl.value = docUrl;
+  elements.openFeishuDoc.href = docUrl;
+  elements.openFeishuDoc.classList.remove('hidden');
+  localStorage.setItem(lastFeishuDocumentKey, docUrl);
+}
 
 function formatBytes(bytes) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -87,6 +97,7 @@ function reset() {
   elements.errorPanel.classList.add('hidden');
   elements.downloadBar.classList.add('hidden');
   elements.feishuBar.classList.add('hidden');
+  elements.openFeishuDoc.classList.add('hidden');
   elements.submitApproval.classList.add('hidden');
   elements.approvalLink.classList.add('hidden');
   elements.checkApproval.classList.add('hidden');
@@ -147,7 +158,10 @@ function showDone(job) {
   elements.sourceResult.classList.add('hidden');
   elements.downloadBar.classList.remove('hidden');
   elements.feishuBar.classList.remove('hidden');
-  if (job.feishuSync) elements.submitApproval.classList.remove('hidden');
+  if (job.feishuSync) {
+    rememberFeishuDocument(job.feishuSync.docUrl);
+    elements.submitApproval.classList.remove('hidden');
+  }
   if (job.feishuApproval) showApproval(job.feishuApproval);
   elements.downloadOriginal.href = `/api/jobs/${job.id}/download/original`;
   elements.downloadMarkdown.href = `/api/jobs/${job.id}/download/markdown`;
@@ -188,8 +202,9 @@ async function syncToFeishu() {
     const response = await fetch(`/api/jobs/${currentJob.id}/sync/feishu`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ docUrl }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || '飞书同步失败');
-    elements.feishuMessage.textContent = result.reused ? '该解析任务已同步到此文档' : '同步成功，已以追加方式写入';
+    elements.feishuMessage.textContent = result.reused ? '该解析任务已同步到此文档，可在线协同编辑后发起审查' : '同步成功，可在线协同编辑后发起审查';
     currentJob.feishuSync = result;
+    rememberFeishuDocument(docUrl);
     elements.submitApproval.classList.remove('hidden');
     elements.syncFeishu.innerHTML = '<i data-lucide="check"></i>已同步';
     lucide.createIcons();
@@ -337,5 +352,8 @@ fetch('/api/health').then(response => response.json()).then(health => {
   elements.serverState.className = 'server-state error';
   elements.serverState.querySelector('em').textContent = '解析服务不可用';
 });
+
+const lastFeishuDocumentUrl = localStorage.getItem(lastFeishuDocumentKey);
+if (lastFeishuDocumentUrl) elements.feishuDocUrl.value = lastFeishuDocumentUrl;
 
 lucide.createIcons();
