@@ -840,6 +840,24 @@ function bindModuleOnePreviewDismiss(dialogId, closeIds, onClose) {
   if (onClose) dialog.addEventListener('close', onClose);
 }
 
+function bindModuleOnePreviewResize(dialogId) {
+  const dialog = document.querySelector(dialogId);
+  const sizes = ['compact', 'wide', 'full'];
+  dialog.querySelectorAll('[data-preview-resize]').forEach(button => button.addEventListener('click', () => {
+    const current = Math.max(0, sizes.indexOf(dialog.dataset.previewSize || 'wide'));
+    const action = button.dataset.previewResize;
+    const next = action === 'smaller' ? Math.max(0, current - 1)
+      : action === 'larger' ? Math.min(sizes.length - 1, current + 1)
+        : (dialog.dataset.previewSize === 'full' ? 'wide' : 'full');
+    dialog.dataset.previewSize = typeof next === 'number' ? sizes[next] : next;
+    dialog.querySelector('[data-preview-resize="smaller"]').disabled = dialog.dataset.previewSize === 'compact';
+    dialog.querySelector('[data-preview-resize="larger"]').disabled = dialog.dataset.previewSize === 'full';
+    lucide.createIcons();
+  }));
+}
+
+bindModuleOnePreviewResize('#moduleOnePreviewDialog');
+bindModuleOnePreviewResize('#moduleOnePdfPreviewDialog');
 bindModuleOnePreviewDismiss('#moduleOnePreviewDialog', ['#moduleOnePreviewClose', '#moduleOnePreviewDismiss']);
 bindModuleOnePreviewDismiss('#moduleOnePdfPreviewDialog', ['#moduleOnePdfPreviewClose', '#moduleOnePdfPreviewDismiss'], () => {
   moduleOnePdfPreviewRequest += 1;
