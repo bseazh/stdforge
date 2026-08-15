@@ -481,11 +481,13 @@ document.querySelectorAll('[data-module-one-output]').forEach(button => button.a
 document.querySelectorAll('[data-editor-section]').forEach(button => button.addEventListener('click', () => renderEditorSection(button.dataset.editorSection)));
 function bindModuleOnePreviewDismiss(dialogId, closeIds, onClose) {
   const dialog = document.querySelector(dialogId);
+  const content = dialog.querySelector('.modal');
   closeIds.forEach(id => document.querySelector(id).addEventListener('click', () => dialog.close()));
-  dialog.addEventListener('click', event => {
-    const bounds = dialog.getBoundingClientRect();
-    const outsideDialog = event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom;
-    if (event.target === dialog && outsideDialog) dialog.close();
+  document.addEventListener('pointerdown', event => {
+    if (!dialog.open || !content) return;
+    const bounds = content.getBoundingClientRect();
+    const outsideContent = event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom;
+    if (outsideContent) dialog.close();
   });
   if (onClose) dialog.addEventListener('close', onClose);
 }
