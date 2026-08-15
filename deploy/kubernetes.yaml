@@ -9,22 +9,14 @@ metadata:
   name: stdforge-nginx
   namespace: stdforge
 data:
-  default.conf: |
-    server {
-      listen 80;
-      server_name _;
-      root /usr/share/nginx/html;
-      index index.html;
+  Caddyfile: |
+    :8080 {
+      root * /usr/share/caddy
 
-      location / {
-        try_files $uri $uri/ =404;
-      }
+      @private path /.git /.git/* /.github /.github/*
+      respond @private 404
 
-      location ~ /\. {
-        deny all;
-        access_log off;
-        log_not_found off;
-      }
+      file_server
     }
 ---
 apiVersion: apps/v1
@@ -45,25 +37,28 @@ spec:
       automountServiceAccountToken: false
       nodeName: 119.29.242.172
       containers:
-        - name: nginx
-          image: nginx:1.27-alpine
+        - name: caddy
+          image: registry-oci-sha2.zeabur.cn/e-69c40ad076bc68ba374cbf9c/s-69c40aec82fb34707a9ee4b0:d-69c50a16b34287b88166f43a
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/bin/caddy"]
+          args: ["run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           volumeMounts:
             - name: site-files
-              mountPath: /usr/share/nginx/html
+              mountPath: /usr/share/caddy
               readOnly: true
-            - name: nginx-config
-              mountPath: /etc/nginx/conf.d/default.conf
-              subPath: default.conf
+            - name: caddy-config
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
               readOnly: true
       volumes:
         - name: site-files
           hostPath:
             path: /home/ubuntu/Project/stdforge
             type: Directory
-        - name: nginx-config
+        - name: caddy-config
           configMap:
             name: stdforge-nginx
 ---
