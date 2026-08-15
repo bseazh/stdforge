@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="StdForge PDF 结构化解析工作台" />
+    <title>PDF Parser | StdForge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="../index.html"><span class="brand-mark">SF</span><span><strong>PDF Parser</strong><small>StdForge 文档解析能力</small></span></a>
+      <div class="server-state" id="serverState"><span></span><em>正在检查服务</em></div>
+    </header>
+
+    <main>
+      <section class="toolbar">
+        <div><p>文档处理</p><h1>PDF 结构化解析</h1></div>
+        <div class="toolbar-actions">
+          <button class="button secondary" id="resetButton" disabled><i data-lucide="rotate-ccw"></i>重新上传</button>
+          <button class="button primary" id="parseButton" disabled><i data-lucide="scan-text"></i>开始解析</button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="source-pane">
+          <div class="pane-heading"><div><span>01</span><strong>原始文档</strong></div><span class="file-state" id="fileState">未选择</span></div>
+          <label class="dropzone" id="dropzone" for="fileInput">
+            <input id="fileInput" type="file" accept="application/pdf,.pdf" />
+            <span class="upload-icon"><i data-lucide="file-up"></i></span>
+            <strong>选择或拖入 PDF</strong>
+            <small>单个文件，最大 30 MB</small>
+          </label>
+          <div class="file-summary hidden" id="fileSummary">
+            <div class="pdf-badge">PDF</div>
+            <div><strong id="fileName"></strong><small id="fileMeta"></small></div>
+            <button class="icon-button" id="removeFile" aria-label="移除文件" title="移除文件"><i data-lucide="x"></i></button>
+          </div>
+          <div class="pdf-preview empty" id="previewContainer">
+            <div class="empty-preview"><i data-lucide="files"></i><span>PDF 预览</span></div>
+            <iframe id="pdfPreview" title="PDF 原文预览"></iframe>
+          </div>
+        </div>
+
+        <div class="result-pane">
+          <div class="pane-heading result-heading">
+            <div><span>02</span><strong>解析文本</strong></div>
+            <div class="view-tabs"><button class="active" data-mode="rendered">阅读</button><button data-mode="source">Markdown</button></div>
+          </div>
+          <div class="progress-panel hidden" id="progressPanel">
+            <div class="progress-head"><span class="spinner"></span><span><strong id="progressTitle">正在上传</strong><small id="progressMessage">任务准备中</small></span><b id="progressValue">0%</b></div>
+            <div class="progress-track"><span id="progressBar"></span></div>
+            <div class="stages"><span class="active">上传</span><span>排队</span><span>解析</span><span>整理</span></div>
+          </div>
+          <div class="result-empty" id="resultEmpty"><i data-lucide="text-search"></i><strong>等待解析结果</strong><span>上传 PDF 后开始解析</span></div>
+          <article class="markdown-view hidden" id="renderedResult"></article>
+          <pre class="source-view hidden" id="sourceResult"></pre>
+          <div class="error-panel hidden" id="errorPanel"><i data-lucide="circle-alert"></i><div><strong>解析失败</strong><p id="errorMessage"></p></div></div>
+        </div>
+      </section>
+
+      <section class="download-bar hidden" id="downloadBar">
+        <div><i data-lucide="circle-check-big"></i><span><strong>文档解析完成</strong><small id="resultMeta">Markdown 已生成</small></span></div>
+        <div>
+          <a class="button secondary" id="downloadOriginal"><i data-lucide="file-down"></i>原始 PDF</a>
+          <a class="button secondary" id="downloadMarkdown"><i data-lucide="braces"></i>Markdown</a>
+          <a class="button primary" id="downloadArchive"><i data-lucide="package-down"></i>完整结果 ZIP</a>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><i data-lucide="info"></i><span></span></div>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

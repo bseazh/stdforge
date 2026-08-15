@@ -39,6 +39,7 @@ node scripts/build-standard-data.mjs data/mineru/GBT46274-2025 data/standard-dat
 ├── index.html       # 单页演示界面
 ├── styles.css       # 响应式样式
 ├── app.js           # 演示状态与交互流程
+├── pdf-parser/      # 独立 PDF 上传、解析和下载页面
 └── docs/PRD.md      # 第一版产品需求文档
 ```
 

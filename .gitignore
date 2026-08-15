@@ -1,5 +1,6 @@
 # MinerU results include source documents and generated binary assets.
 data/mineru/
+pdf-parser/.runtime/
 
 # Local secrets must never enter the repository.
 .env
