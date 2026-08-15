@@ -91,4 +91,4 @@ jobs:
         env:
           DEPLOY_PATH: /home/ubuntu/Project/stdforge
         run: |
-          ssh "$DEPLOY_TARGET" "kubectl apply -f '$DEPLOY_PATH/deploy/kubernetes.yaml' && kubectl -n stdforge rollout restart deployment/stdforge-web && kubectl -n stdforge rollout status deployment/stdforge-web --timeout=120s"
+          ssh "$DEPLOY_TARGET" "sudo -n kubectl apply -f '$DEPLOY_PATH/deploy/kubernetes.yaml' && sudo -n kubectl -n stdforge rollout restart deployment/stdforge-web && sudo -n kubectl -n stdforge rollout status deployment/stdforge-web --timeout=120s"
