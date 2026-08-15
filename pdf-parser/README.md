@@ -25,7 +25,7 @@ PORT=4174 MINERU_TOKEN='<your-token>' node pdf-parser/server.mjs
 
 - PDF 使用 MinerU 识别版面、表格和正文，转换为 Markdown。
 - DOCX、TXT、Markdown、CSV 直接提取为 UTF-8 文本。
-- 解析页可选择“标准编写、标准、政策”分区。PDF 解析完成或文本提取成功后，内容会自动写入仓库根目录 `KB/`，按哈希去重并更新段落分块索引。
+- 解析页可选择“标准编写、标准、政策”分区。PDF 解析完成或文本提取成功后，内容会自动写入仓库根目录 `KDB/`，按哈希去重并更新段落分块索引。
 
 输出：
 
@@ -36,7 +36,7 @@ PORT=4174 MINERU_TOKEN='<your-token>' node pdf-parser/server.mjs
 
 MinerU 返回 `done` 后，结果 ZIP 会从其 CDN 下载。网络中断或 CDN 短暂重置时，服务会自动重试 3 次（1 秒、2 秒退避）；三次都失败会返回“MinerU 已完成解析，但下载结果失败，可重试”，而不会误报为 PDF 解析失败。
 
-令牌只从 `MINERU_TOKEN` 环境变量读取。上传文件和解析结果保存在 `pdf-parser/.runtime/`，该目录被 Git 忽略。知识库文本和目录索引保存在 `KB/`，服务重启后仍可用于检索。
+令牌只从 `MINERU_TOKEN` 环境变量读取。上传文件和解析结果保存在 `pdf-parser/.runtime/`，该目录被 Git 忽略。知识库文本和目录索引保存在 `KDB/`，服务重启后仍可用于检索。
 
 ## 知识库问答
 

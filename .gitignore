@@ -3,9 +3,9 @@ data/mineru/
 pdf-parser/.runtime/
 
 # Runtime knowledge documents and indexes persist beside the application but are not source files.
-KB/.system/
-KB/*/text/
-KB/*/source/
+KDB/.system/
+KDB/*/text/
+KDB/*/source/
 
 # Local secrets must never enter the repository.
 .env

@@ -332,7 +332,7 @@ document.querySelectorAll('.view-tabs button').forEach(button => button.addEvent
 fetch('/api/health').then(response => response.json()).then(health => {
   elements.serverState.className = `server-state ${health.ok ? 'ready' : 'error'}`;
   const kbCount = health.knowledgeBase?.documents || 0;
-  elements.serverState.querySelector('em').textContent = health.mineruConfigured ? `MinerU 已连接 · KB ${kbCount} 份文档` : `知识库可用 · 缺少 MinerU 配置`;
+  elements.serverState.querySelector('em').textContent = health.mineruConfigured ? `MinerU 已连接 · KDB ${kbCount} 份文档` : `知识库可用 · 缺少 MinerU 配置`;
 }).catch(() => {
   elements.serverState.className = 'server-state error';
   elements.serverState.querySelector('em').textContent = '解析服务不可用';

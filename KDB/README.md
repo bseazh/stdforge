@@ -1,9 +1,9 @@
-# StdForge Knowledge Base
+# StdForge Knowledge Database
 
-`KB/` 是文档知识库的持久化根目录。服务启动时会维护三个业务分区：
+`KDB/` 是文档知识库的持久化根目录。服务启动时会维护三个业务分区：
 
 ```text
-KB/
+KDB/
 ├── standard-drafting/  # 标准编写材料、草案与编制说明
 ├── standards/          # 标准文本、公告与规范性引用材料
 ├── policies/           # 法律法规、政策原文与解读依据

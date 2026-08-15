@@ -46,9 +46,10 @@ jobs:
             --exclude='.git/hooks/' \
             --exclude='.env' \
             --exclude='.env.*' \
-            --exclude='KB/.system/' \
-            --exclude='KB/*/text/' \
-            --exclude='KB/*/source/' \
+            --exclude='KB/' \
+            --exclude='KDB/.system/' \
+            --exclude='KDB/*/text/' \
+            --exclude='KDB/*/source/' \
             -e 'ssh -o StrictHostKeyChecking=yes' \
             ./ "$DEPLOY_TARGET:$DEPLOY_PATH/"
 

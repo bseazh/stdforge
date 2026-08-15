@@ -17,7 +17,7 @@ const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 const maxFileSize = 30 * 1024 * 1024;
 const jobs = new Map();
-const kb = new KnowledgeBase(join(root, '../KB'));
+const kb = new KnowledgeBase(join(root, '../KDB'));
 
 await mkdir(runtimeRoot, { recursive: true });
 for (const envFile of ['.env.local', '.env.smtp.local']) {
