@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start:parser": "node pdf-parser/server.mjs",
-    "check": "node --check app.js && node --check pdf-parser/server.mjs && node --check pdf-parser/kb-store.mjs && node --check pdf-parser/app.js && node --check KDB/app.js"
+    "check": "node --check app.js && node --check pdf-parser/server.mjs && node --check pdf-parser/kb-store.mjs && node --check pdf-parser/app.js && node --check KDB/app.js && node --check KDB/assistant.js"
   },
   "repository": {
     "type": "git",

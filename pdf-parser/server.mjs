@@ -159,14 +159,14 @@ function publicDocument(document) {
   return { ...rest, chunkCount: chunks.length };
 }
 
-async function generateGroundedAnswer(question, hits, directEvidence) {
+async function generateGroundedAnswer(question, hits, directEvidence, responseMode = 'auto') {
   if (!hits.length) {
     return {
       mode: 'not-found',
       answer: '知识库中没有找到能够支撑该问题的内容。请上传相关标准、编写材料或政策原文后再提问。'
     };
   }
-  if (directEvidence) return { mode: 'evidence', answer: directEvidence.answer };
+  if (directEvidence && responseMode !== 'llm') return { mode: 'evidence', answer: directEvidence.answer };
   const sources = hits.map((hit, index) => `【${index + 1}】${hit.title} / ${hit.heading || `片段 ${hit.chunk}`}\n${hit.text}`).join('\n\n');
   if (!llmBaseUrl || !llmApiKey || !llmModel) {
     return {
@@ -382,6 +382,52 @@ async function startParse(job) {
   }
 }
 
+async function createPdfParseJob({ body, fileName, kbModule }) {
+  if (!token) throw new Error('服务端未配置 MINERU_TOKEN');
+  if (body.subarray(0, 5).toString() !== '%PDF-') throw new Error('文件内容不是有效 PDF');
+  const id = randomUUID();
+  const outputDir = join(runtimeRoot, id);
+  const originalPath = join(outputDir, 'original.pdf');
+  await mkdir(outputDir, { recursive: true });
+  await writeFile(originalPath, body);
+  const job = {
+    id,
+    fileName: safeName(fileName),
+    size: body.length,
+    outputDir,
+    originalPath,
+    originalHash: createHash('sha256').update(body).digest('hex'),
+    kbModule,
+    state: 'queued',
+    message: '任务已创建',
+    createdAt: new Date().toISOString()
+  };
+  jobs.set(id, job);
+  void startParse(job);
+  return job;
+}
+
+async function importKnowledgeFile({ module, fileName, body }) {
+  const extension = extname(fileName).toLowerCase();
+  if (!['.txt', '.md', '.markdown', '.csv', '.docx'].includes(extension)) {
+    throw new Error('知识库直接上传支持 TXT、Markdown、CSV 和 DOCX；PDF 将自动进入解析队列');
+  }
+  if (!body.length) throw new Error('上传文件为空');
+  const importId = randomUUID();
+  const stagingPath = join(runtimeRoot, `${importId}-${fileName}`);
+  try {
+    await writeFile(stagingPath, body);
+    return await kb.importFile({
+      module,
+      filePath: stagingPath,
+      fileName,
+      source: { type: 'upload', title: fileName.replace(/\.[^.]+$/, ''), fileHash: createHash('sha256').update(body).digest('hex') }
+    });
+  } finally {
+    await unlink(stagingPath).catch(() => {});
+  }
+}
+
 function sendDownload(response, path, downloadName, contentType) {
   response.writeHead(200, {
     'Content-Type': contentType,
@@ -416,25 +462,30 @@ async function handleApi(request, response, url) {
     }
   }
   if (request.method === 'POST' && url.pathname === '/api/kb/imports') {
-    let stagingPath;
     try {
       const module = parseKbModule(url.searchParams.get('module'));
       const fileName = safeDocumentName(url.searchParams.get('filename'));
-      const extension = extname(fileName).toLowerCase();
-      if (!['.txt', '.md', '.markdown', '.csv', '.docx'].includes(extension)) {
-        return json(response, 415, { error: '知识库直接上传支持 TXT、Markdown、CSV 和 DOCX；PDF 请使用 /api/parse 解析后自动入库' });
-      }
       const body = await readRequestBody(request);
-      if (!body.length) return json(response, 400, { error: '上传文件为空' });
-      const importId = randomUUID();
-      stagingPath = join(runtimeRoot, `${importId}-${fileName}`);
-      await writeFile(stagingPath, body);
-      const indexed = await kb.importFile({ module, filePath: stagingPath, fileName, source: { type: 'upload', title: fileName.replace(/\.[^.]+$/, ''), fileHash: createHash('sha256').update(body).digest('hex') } });
+      const indexed = await importKnowledgeFile({ module, fileName, body });
       return json(response, indexed.reused ? 200 : 201, { ok: true, reused: indexed.reused, document: publicDocument(indexed.document), stats: kb.stats() });
     } catch (error) {
       return json(response, 400, { error: error.message });
-    } finally {
-      if (stagingPath) await unlink(stagingPath).catch(() => {});
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/kb/ingest') {
+    try {
+      const module = parseKbModule(url.searchParams.get('module'));
+      const fileName = safeDocumentName(url.searchParams.get('filename'));
+      const body = await readRequestBody(request);
+      if (extname(fileName).toLowerCase() === '.pdf') {
+        const job = await createPdfParseJob({ body, fileName, kbModule: module });
+        return json(response, 202, { ok: true, kind: 'pdf-job', job: publicJob(job) });
+      }
+      const indexed = await importKnowledgeFile({ module, fileName, body });
+      return json(response, indexed.reused ? 200 : 201, { ok: true, kind: 'document', reused: indexed.reused, document: publicDocument(indexed.document), stats: kb.stats() });
+    } catch (error) {
+      const isPdfConfigError = error.message === '服务端未配置 MINERU_TOKEN';
+      return json(response, isPdfConfigError ? 503 : 400, { error: error.message });
     }
   }
   if (request.method === 'POST' && url.pathname === '/api/kb/reindex') {
@@ -455,14 +506,27 @@ async function handleApi(request, response, url) {
   }
   if (request.method === 'POST' && url.pathname === '/api/kb/ask') {
     try {
-      const { question, module } = await readJsonRequest(request);
+      const startedAt = performance.now();
+      const { question, module, responseMode } = await readJsonRequest(request);
+      const selectedMode = responseMode === 'llm' ? 'llm' : 'auto';
       const hits = kb.search(question, { module: module || undefined, limit: 6 });
+      const retrievalMs = performance.now() - startedAt;
       const directEvidence = findDirectEvidence(question, hits);
-      const result = await generateGroundedAnswer(question, hits, directEvidence);
+      const generationStartedAt = performance.now();
+      const result = await generateGroundedAnswer(question, hits, directEvidence, selectedMode);
+      const generationMs = performance.now() - generationStartedAt;
       return json(response, 200, {
         question,
         ...result,
-        trace: retrievalTrace(question, hits, directEvidence),
+        execution: {
+          strategy: result.mode === 'evidence' ? 'evidence' : result.mode === 'llm' ? 'llm' : 'extractive',
+          retrievalMs: Math.round(retrievalMs),
+          generationMs: Math.round(generationMs),
+          totalMs: Math.round(performance.now() - startedAt),
+          llmRequested: selectedMode === 'llm',
+          llmUsed: result.mode === 'llm'
+        },
+        trace: retrievalTrace(question, hits, result.mode === 'evidence' ? directEvidence : null),
         citations: hits.map(({ text, ...hit }, index) => ({ id: index + 1, ...hit, excerpt: directEvidence?.citationId === index + 1 ? directEvidence.excerpt : hit.excerpt }))
       });
     } catch (error) {
@@ -526,16 +590,7 @@ async function handleApi(request, response, url) {
     try {
       const kbModule = parseKbModule(url.searchParams.get('module'));
       const body = await readRequestBody(request);
-      if (body.subarray(0, 5).toString() !== '%PDF-') return json(response, 400, { error: '文件内容不是有效 PDF' });
-      const id = randomUUID();
-      const fileName = safeName(url.searchParams.get('filename'));
-      const outputDir = join(runtimeRoot, id);
-      const originalPath = join(outputDir, 'original.pdf');
-      await mkdir(outputDir, { recursive: true });
-      await writeFile(originalPath, body);
-      const job = { id, fileName, size: body.length, outputDir, originalPath, originalHash: createHash('sha256').update(body).digest('hex'), kbModule, state: 'queued', message: '任务已创建', createdAt: new Date().toISOString() };
-      jobs.set(id, job);
-      void startParse(job);
+      const job = await createPdfParseJob({ body, fileName: url.searchParams.get('filename'), kbModule });
       return json(response, 202, publicJob(job));
     } catch (error) {
       return json(response, 400, { error: error.message });

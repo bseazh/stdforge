@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="KDB/assistant.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -36,7 +37,7 @@
           <div class="crumb"><span>标准编制</span><i data-lucide="chevron-right"></i><strong data-standard-number>GB/T 46274-2025</strong></div>
           <div class="top-actions">
             <button class="icon-button" aria-label="通知" title="通知"><i data-lucide="bell"></i><em></em></button>
-            <a class="button secondary" href="KDB/"><i data-lucide="messages-square"></i>知识库问答</a>
+            <button class="button secondary" type="button" data-kdb-assistant-open><i data-lucide="messages-square"></i>知识助手</button>
             <button class="button secondary" id="openImport"><i data-lucide="upload"></i>导入文件</button>
             <button class="button primary" id="runFlow"><i data-lucide="play"></i>演示完整流程</button>
           </div>
@@ -126,5 +127,6 @@
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script src="data/standard-data.js"></script>
     <script src="app.js"></script>
+    <script src="KDB/assistant.js"></script>
   </body>
 </html>
