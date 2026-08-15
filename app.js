@@ -58,6 +58,7 @@ let moduleOneTemplateName = 'GB/T 1.1 常见章节结构（演示）';
 let moduleOneTemplates = [];
 let moduleOneTemplateItem = null;
 let moduleOneUploadedTemplateUrl = '';
+let moduleOnePdfPreviewRequest = 0;
 let moduleOneDrafts = {};
 let moduleOneActiveOutput = 'standardDraft';
 let moduleOneFeishuUrl = '';
@@ -148,7 +149,13 @@ async function selectModuleOneDemo(item, markdown) {
   moduleOneSourceText = markdown;
   moduleOneSourceName = item.fileName;
   moduleOneSourceItem = item;
-  document.querySelectorAll('.module-one-demo-card').forEach(card => card.classList.toggle('active', card.dataset.demoId === item.id));
+  document.querySelectorAll('.module-one-demo-card').forEach(card => {
+    const selected = card.dataset.demoId === item.id;
+    card.classList.toggle('active', selected);
+    card.setAttribute('aria-pressed', String(selected));
+    const button = card.querySelector('[data-demo-select]');
+    if (button) button.textContent = selected ? '已选中' : '选择';
+  });
   if (item.defaultTemplateId && moduleOneTemplateItem?.id !== 'uploaded') await selectModuleOneReferenceTemplate(item.defaultTemplateId, { silent: true });
   updateModuleOneDraftState();
   notify('已选择研发输入：' + item.title);
@@ -164,24 +171,48 @@ function openModuleOnePreview(item, markdown) {
   lucide.createIcons();
 }
 
-function openModuleOnePdfPreview(item) {
+async function openModuleOnePdfPreview(item) {
   const dialog = document.querySelector('#moduleOnePdfPreviewDialog');
+  const frame = document.querySelector('#moduleOnePdfPreviewFrame');
+  const status = document.querySelector('#moduleOnePdfPreviewStatus');
+  const requestId = ++moduleOnePdfPreviewRequest;
   document.querySelector('#moduleOnePdfPreviewTitle').textContent = item.title;
-  document.querySelector('#moduleOnePdfPreviewFrame').src = item.previewUrl + '#view=FitH';
   const download = document.querySelector('#moduleOnePdfPreviewDownload');
   download.href = item.downloadUrl || item.previewUrl;
   download.download = item.downloadName || item.fileName || 'reference-template.pdf';
+  frame.removeAttribute('src');
+  frame.hidden = true;
+  status.hidden = false;
+  status.innerHTML = '<i data-lucide="loader-circle"></i><div><strong>正在加载原始 PDF</strong><span>正在检查文件是否可用…</span></div>';
   dialog.showModal();
   lucide.createIcons();
+  try {
+    const response = await fetch(item.previewUrl, { method: 'HEAD', cache: 'no-store' });
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok || !contentType.includes('application/pdf')) throw new Error('原始 PDF 当前不可用');
+    if (requestId !== moduleOnePdfPreviewRequest || !dialog.open) return;
+    frame.src = item.previewUrl + '#view=FitH';
+    frame.hidden = false;
+    status.hidden = true;
+  } catch (error) {
+    if (requestId !== moduleOnePdfPreviewRequest || !dialog.open) return;
+    status.innerHTML = '<i data-lucide="triangle-alert"></i><div><strong>无法加载原始 PDF</strong><span>' + escapeHtml(error.message) + '。请下载文件后查看，或稍后重试。</span></div>';
+    lucide.createIcons();
+  }
 }
 
 function renderModuleOneTemplateLibrary() {
   const library = document.querySelector('#moduleOneTemplateLibrary');
-  library.innerHTML = moduleOneTemplates.map(item => '<article class="module-one-template-card' + (moduleOneTemplateItem?.id === item.id ? ' active' : '') + '" data-template-id="' + escapeHtml(item.id) + '"><small>' + escapeHtml(item.industry) + ' · ' + escapeHtml(item.pages) + ' 页</small><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-template-meta"><span>' + escapeHtml(item.code) + '</span><span>' + escapeHtml(item.extraction) + '</span></div><div class="module-one-demo-actions"><button class="button secondary" type="button" data-template-preview>预览 PDF</button><button class="button primary" type="button" data-template-select>用作模板</button></div></article>').join('');
+  library.innerHTML = moduleOneTemplates.map(item => {
+    const selected = moduleOneTemplateItem?.id === item.id;
+    return '<article class="module-one-template-card' + (selected ? ' active' : '') + '" data-template-id="' + escapeHtml(item.id) + '" tabindex="0" aria-pressed="' + selected + '"><small>' + escapeHtml(item.industry) + ' · ' + escapeHtml(item.pages) + ' 页</small><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-template-meta"><span>' + escapeHtml(item.code) + '</span><span>' + escapeHtml(item.extraction) + '</span></div><div class="module-one-demo-actions"><button class="button secondary" type="button" data-template-preview>预览 PDF</button><button class="button primary" type="button" data-template-select>' + (selected ? '已用作模板' : '用作模板') + '</button></div></article>';
+  }).join('');
   library.querySelectorAll('.module-one-template-card').forEach(card => {
     const item = moduleOneTemplates.find(candidate => candidate.id === card.dataset.templateId);
-    card.querySelector('[data-template-preview]').addEventListener('click', () => openModuleOnePdfPreview(item));
+    card.querySelector('[data-template-preview]').addEventListener('click', () => void openModuleOnePdfPreview(item));
     card.querySelector('[data-template-select]').addEventListener('click', () => void selectModuleOneReferenceTemplate(item.id));
+    card.addEventListener('click', event => { if (!event.target.closest('button')) void selectModuleOneReferenceTemplate(item.id); });
+    card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void selectModuleOneReferenceTemplate(item.id); } });
   });
   lucide.createIcons();
 }
@@ -225,7 +256,7 @@ async function loadModuleOneDemos() {
     if (!response.ok) throw new Error(payload.error || '演示输入加载失败');
     moduleOneTemplateText = payload.template?.text || '';
     moduleOneTemplateName = payload.template?.name || moduleOneTemplateName;
-    grid.innerHTML = payload.inputs.map(item => '<article class="module-one-demo-card" data-demo-id="' + escapeHtml(item.id) + '"><small>' + escapeHtml(item.industry) + '</small><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-demo-actions"><button class="button secondary" type="button" data-demo-preview>预览</button><button class="button primary" type="button" data-demo-select>选择</button></div></article>').join('');
+    grid.innerHTML = payload.inputs.map(item => '<article class="module-one-demo-card" data-demo-id="' + escapeHtml(item.id) + '" tabindex="0" aria-pressed="false"><small>' + escapeHtml(item.industry) + '</small><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-demo-actions"><button class="button secondary" type="button" data-demo-preview>预览</button><button class="button primary" type="button" data-demo-select>选择</button></div></article>').join('');
     grid.querySelectorAll('.module-one-demo-card').forEach(card => {
       const item = payload.inputs.find(candidate => candidate.id === card.dataset.demoId);
       const readPreview = async () => {
@@ -238,6 +269,15 @@ async function loadModuleOneDemos() {
         try { openModuleOnePreview(item, await readPreview()); } catch (error) { notify(error.message); }
       });
       card.querySelector('[data-demo-select]').addEventListener('click', async () => {
+        try { await selectModuleOneDemo(item, await readPreview()); } catch (error) { notify(error.message); }
+      });
+      card.addEventListener('click', async event => {
+        if (event.target.closest('button')) return;
+        try { await selectModuleOneDemo(item, await readPreview()); } catch (error) { notify(error.message); }
+      });
+      card.addEventListener('keydown', async event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
         try { await selectModuleOneDemo(item, await readPreview()); } catch (error) { notify(error.message); }
       });
     });
@@ -439,10 +479,22 @@ document.querySelectorAll('[data-module-one-output]').forEach(button => button.a
   renderModuleOneOutput();
 }));
 document.querySelectorAll('[data-editor-section]').forEach(button => button.addEventListener('click', () => renderEditorSection(button.dataset.editorSection)));
-document.querySelector('#moduleOnePreviewClose').addEventListener('click', () => document.querySelector('#moduleOnePreviewDialog').close());
-document.querySelector('#moduleOnePreviewDismiss').addEventListener('click', () => document.querySelector('#moduleOnePreviewDialog').close());
-document.querySelector('#moduleOnePdfPreviewClose').addEventListener('click', () => document.querySelector('#moduleOnePdfPreviewDialog').close());
-document.querySelector('#moduleOnePdfPreviewDismiss').addEventListener('click', () => document.querySelector('#moduleOnePdfPreviewDialog').close());
+function bindModuleOnePreviewDismiss(dialogId, closeIds, onClose) {
+  const dialog = document.querySelector(dialogId);
+  closeIds.forEach(id => document.querySelector(id).addEventListener('click', () => dialog.close()));
+  dialog.addEventListener('click', event => {
+    const bounds = dialog.getBoundingClientRect();
+    const outsideDialog = event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom;
+    if (event.target === dialog && outsideDialog) dialog.close();
+  });
+  if (onClose) dialog.addEventListener('close', onClose);
+}
+
+bindModuleOnePreviewDismiss('#moduleOnePreviewDialog', ['#moduleOnePreviewClose', '#moduleOnePreviewDismiss']);
+bindModuleOnePreviewDismiss('#moduleOnePdfPreviewDialog', ['#moduleOnePdfPreviewClose', '#moduleOnePdfPreviewDismiss'], () => {
+  moduleOnePdfPreviewRequest += 1;
+  document.querySelector('#moduleOnePdfPreviewFrame').removeAttribute('src');
+});
 document.querySelector('#runAudit').addEventListener('click', () => { setFlowStage(2); notify('规范性审核完成：发现 4 个待处理问题'); });
 document.querySelector('#refreshSignals').addEventListener('click', () => notify('已同步 12 条标准公告与组织信息'));
 document.querySelector('#collectSource').addEventListener('click', () => notify('已采集公开元数据并写入来源留痕'));

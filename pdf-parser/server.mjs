@@ -575,8 +575,29 @@ function sendDownload(response, path, downloadName, contentType) {
   createReadStream(path).pipe(response);
 }
 
-function sendInline(response, path, contentType) {
-  response.writeHead(200, { 'Content-Type': contentType, 'Content-Disposition': 'inline', 'Cache-Control': 'no-store' });
+async function sendInline(request, response, path, contentType) {
+  const fileStat = await stat(path);
+  const headers = {
+    'Content-Type': contentType,
+    'Content-Disposition': 'inline',
+    'Cache-Control': 'no-store',
+    'Accept-Ranges': 'bytes'
+  };
+  const range = request.headers.range;
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const start = match?.[1] ? Number(match[1]) : 0;
+    const end = match?.[2] ? Math.min(Number(match[2]), fileStat.size - 1) : fileStat.size - 1;
+    if (!match || start > end || start >= fileStat.size) {
+      response.writeHead(416, { ...headers, 'Content-Range': `bytes */${fileStat.size}` });
+      return response.end();
+    }
+    response.writeHead(206, { ...headers, 'Content-Range': `bytes ${start}-${end}/${fileStat.size}`, 'Content-Length': end - start + 1 });
+    if (request.method === 'HEAD') return response.end();
+    return createReadStream(path, { start, end }).pipe(response);
+  }
+  response.writeHead(200, { ...headers, 'Content-Length': fileStat.size });
+  if (request.method === 'HEAD') return response.end();
   createReadStream(path).pipe(response);
 }
 
@@ -717,7 +738,8 @@ async function handleApi(request, response, url) {
     const templatePath = join(root, '../reference-templates', item.fileName);
     if (referenceTemplateMatch[2] === 'preview') {
       try { await stat(templatePath); } catch { return json(response, 404, { error: '参考模板原件不存在' }); }
-      return sendInline(response, templatePath, 'application/pdf');
+      if (request.method !== 'GET' && request.method !== 'HEAD') return json(response, 405, { error: '不支持的请求方法' });
+      return sendInline(request, response, templatePath, 'application/pdf');
     }
     if (referenceTemplateMatch[2] === 'text') {
       try {
