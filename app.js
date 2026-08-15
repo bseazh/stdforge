@@ -46,6 +46,178 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character]);
 }
 
+let moduleOneSourceText = '';
+let moduleOneSourceName = '';
+let moduleOneTemplateText = '';
+let moduleOneTemplateName = 'GB/T 1.1 常见章节结构（演示）';
+let moduleOneDrafts = {};
+let moduleOneActiveOutput = 'standardDraft';
+
+function moduleOneMarkdownHtml(markdown) {
+  const lines = String(markdown || '').split(/\r?\n/);
+  const output = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const next = lines[index + 1] || '';
+    if (/^\|/.test(line) && /^\|?\s*:?-{3,}/.test(next)) {
+      const header = line.split('|').slice(1, -1).map(value => '<th>' + escapeHtml(value.trim()) + '</th>').join('');
+      output.push('<table><thead><tr>' + header + '</tr></thead><tbody>');
+      index += 2;
+      while (index < lines.length && /^\|/.test(lines[index])) {
+        const cells = lines[index].split('|').slice(1, -1).map(value => '<td>' + escapeHtml(value.trim()) + '</td>').join('');
+        output.push('<tr>' + cells + '</tr>');
+        index += 1;
+      }
+      output.push('</tbody></table>');
+      index -= 1;
+    } else if (/^### /.test(line)) output.push('<h3>' + escapeHtml(line.slice(4)) + '</h3>');
+    else if (/^## /.test(line)) output.push('<h2>' + escapeHtml(line.slice(3)) + '</h2>');
+    else if (/^# /.test(line)) output.push('<h1>' + escapeHtml(line.slice(2)) + '</h1>');
+    else if (line.trim()) output.push('<p>' + escapeHtml(line) + '</p>');
+  }
+  return output.join('');
+}
+
+function setModuleOneMode(mode) {
+  const ai = mode === 'ai';
+  document.querySelector('#moduleOneDraft').classList.toggle('hidden', !ai);
+  document.querySelector('#clauseEditorWorkbench').classList.toggle('hidden', ai);
+  document.querySelector('#standardEditorActions').classList.toggle('hidden', ai);
+  document.querySelectorAll('[data-drafting-mode]').forEach(button => button.classList.toggle('active', button.dataset.draftingMode === mode));
+}
+
+function updateModuleOneDraftState() {
+  const ready = Boolean(moduleOneSourceText);
+  document.querySelector('#moduleOneGenerate').disabled = !ready;
+  document.querySelector('#moduleOneDraftState').textContent = ready
+    ? '已选择：' + moduleOneSourceName + ' · 模板：' + moduleOneTemplateName
+    : '请选择一份研发技术要求。';
+}
+
+function selectModuleOneDemo(item, markdown) {
+  moduleOneSourceText = markdown;
+  moduleOneSourceName = item.fileName;
+  document.querySelectorAll('.module-one-demo-card').forEach(card => card.classList.toggle('active', card.dataset.demoId === item.id));
+  updateModuleOneDraftState();
+  notify('已选择研发输入：' + item.title);
+}
+
+function openModuleOnePreview(item, markdown) {
+  document.querySelector('#moduleOnePreviewTitle').textContent = item.title;
+  document.querySelector('#moduleOnePreviewBody').innerHTML = moduleOneMarkdownHtml(markdown);
+  const download = document.querySelector('#moduleOnePreviewDownload');
+  download.href = item.downloadUrl;
+  download.download = item.fileName;
+  document.querySelector('#moduleOnePreviewDialog').showModal();
+  lucide.createIcons();
+}
+
+async function loadModuleOneDemos() {
+  const grid = document.querySelector('#moduleOneDemoGrid');
+  try {
+    const response = await fetch('/api/demo-inputs');
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || '演示输入加载失败');
+    moduleOneTemplateText = payload.template?.text || '';
+    moduleOneTemplateName = payload.template?.name || moduleOneTemplateName;
+    grid.innerHTML = payload.inputs.map(item => '<article class="module-one-demo-card" data-demo-id="' + escapeHtml(item.id) + '"><small>' + escapeHtml(item.industry) + '</small><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-demo-actions"><button class="button secondary" type="button" data-demo-preview>预览</button><button class="button primary" type="button" data-demo-select>选择</button></div></article>').join('');
+    grid.querySelectorAll('.module-one-demo-card').forEach(card => {
+      const item = payload.inputs.find(candidate => candidate.id === card.dataset.demoId);
+      const readPreview = async () => {
+        const response = await fetch(item.previewUrl);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '文档预览读取失败');
+        return result.markdown;
+      };
+      card.querySelector('[data-demo-preview]').addEventListener('click', async () => {
+        try { openModuleOnePreview(item, await readPreview()); } catch (error) { notify(error.message); }
+      });
+      card.querySelector('[data-demo-select]').addEventListener('click', async () => {
+        try { selectModuleOneDemo(item, await readPreview()); } catch (error) { notify(error.message); }
+      });
+    });
+    updateModuleOneDraftState();
+  } catch (error) {
+    grid.innerHTML = '<p class="draft-loading">演示输入加载失败：' + escapeHtml(error.message) + '</p>';
+  }
+}
+
+async function pollModuleOneTemplate(jobId) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    await new Promise(resolve => window.setTimeout(resolve, 1500));
+    const response = await fetch('/api/jobs/' + jobId);
+    const job = await response.json();
+    if (job.state === 'done') return job.markdown || '';
+    if (job.state === 'failed') throw new Error(job.error || '参考 PDF 解析失败');
+    document.querySelector('#moduleOneTemplateStatus').textContent = job.message || '正在解析参考 PDF…';
+  }
+  throw new Error('参考 PDF 解析超时');
+}
+
+async function parseModuleOneTemplate() {
+  const file = document.querySelector('#moduleOneTemplateFile').files?.[0];
+  if (!file) return;
+  const button = document.querySelector('#moduleOneParseTemplate');
+  button.disabled = true;
+  document.querySelector('#moduleOneTemplateStatus').textContent = '正在提交 MinerU 解析…';
+  try {
+    const response = await fetch('/api/parse?module=standards&filename=' + encodeURIComponent(file.name), { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: file });
+    const job = await response.json();
+    if (!response.ok) throw new Error(job.error || '参考 PDF 解析失败');
+    moduleOneTemplateText = await pollModuleOneTemplate(job.id);
+    moduleOneTemplateName = file.name;
+    document.querySelector('#moduleOneTemplateStatus').textContent = '模板已提取：' + file.name + '，生成时将按其章节结构组织输出。';
+    updateModuleOneDraftState();
+    notify('参考 PDF 已解析为模板');
+  } catch (error) {
+    document.querySelector('#moduleOneTemplateStatus').textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function renderModuleOneOutput() {
+  document.querySelector('#moduleOneMarkdown').innerHTML = moduleOneMarkdownHtml(moduleOneDrafts[moduleOneActiveOutput] || '');
+  document.querySelectorAll('[data-module-one-output]').forEach(button => button.classList.toggle('active', button.dataset.moduleOneOutput === moduleOneActiveOutput));
+}
+
+async function generateModuleOneDrafts() {
+  if (!moduleOneSourceText) return notify('请先选择一份研发技术要求');
+  const button = document.querySelector('#moduleOneGenerate');
+  button.disabled = true;
+  document.querySelector('#moduleOneProgress').classList.remove('hidden');
+  try {
+    const response = await fetch('/api/drafts/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceName: moduleOneSourceName, sourceText: moduleOneSourceText, templateName: moduleOneTemplateName, templateText: moduleOneTemplateText })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '草案生成失败');
+    moduleOneDrafts = { standardDraft: result.standardDraft, compilationNotes: result.compilationNotes, preResearchReport: result.preResearchReport };
+    moduleOneActiveOutput = 'standardDraft';
+    document.querySelector('#moduleOneOutput').classList.remove('hidden');
+    renderModuleOneOutput();
+    notify(result.mode === 'llm' ? 'LLM 已生成三类草案' : '已生成三类演示草案');
+  } catch (error) {
+    notify(error.message);
+  } finally {
+    document.querySelector('#moduleOneProgress').classList.add('hidden');
+    updateModuleOneDraftState();
+  }
+}
+
+function downloadModuleOneDraft() {
+  const content = moduleOneDrafts[moduleOneActiveOutput];
+  if (!content) return;
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/markdown;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = moduleOneActiveOutput + '-' + moduleOneSourceName.replace(/\.[^.]+$/, '') + '.md';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function renderIssue(index) {
   const issue = state.issues[index];
   if (!issue) return;
@@ -87,7 +259,22 @@ document.querySelectorAll('.module-tab').forEach(item => item.addEventListener('
 document.querySelectorAll('#showStandard').forEach(button => button.addEventListener('click', () => showView('standards')));
 document.querySelectorAll('#showAnnouncements').forEach(button => button.addEventListener('click', () => showView('announcements')));
 document.querySelectorAll('#showPolicies').forEach(button => button.addEventListener('click', () => showView('policies')));
-document.querySelectorAll('.issue-row').forEach(row => row.addEventListener('click', () => { showView('standards'); renderIssue(Number(row.dataset.issue)); }));
+document.querySelectorAll('.issue-row').forEach(row => row.addEventListener('click', () => { showView('standards'); setModuleOneMode('editor'); renderIssue(Number(row.dataset.issue)); }));
+document.querySelectorAll('[data-drafting-mode]').forEach(button => button.addEventListener('click', () => setModuleOneMode(button.dataset.draftingMode)));
+document.querySelector('#moduleOneTemplateFile').addEventListener('change', event => {
+  const file = event.target.files?.[0];
+  document.querySelector('#moduleOneParseTemplate').disabled = !file;
+  if (file) document.querySelector('#moduleOneTemplateStatus').textContent = '已选择模板：' + file.name + '，点击“解析模板”。';
+});
+document.querySelector('#moduleOneParseTemplate').addEventListener('click', parseModuleOneTemplate);
+document.querySelector('#moduleOneGenerate').addEventListener('click', generateModuleOneDrafts);
+document.querySelector('#moduleOneDownload').addEventListener('click', downloadModuleOneDraft);
+document.querySelectorAll('[data-module-one-output]').forEach(button => button.addEventListener('click', () => {
+  moduleOneActiveOutput = button.dataset.moduleOneOutput;
+  renderModuleOneOutput();
+}));
+document.querySelector('#moduleOnePreviewClose').addEventListener('click', () => document.querySelector('#moduleOnePreviewDialog').close());
+document.querySelector('#moduleOnePreviewDismiss').addEventListener('click', () => document.querySelector('#moduleOnePreviewDialog').close());
 document.querySelector('#runAudit').addEventListener('click', () => { setFlowStage(2); notify('规范性审核完成：发现 4 个待处理问题'); });
 document.querySelector('#refreshSignals').addEventListener('click', () => notify('已同步 12 条标准公告与组织信息'));
 document.querySelector('#collectSource').addEventListener('click', () => notify('已采集公开元数据并写入来源留痕'));
@@ -170,6 +357,8 @@ document.querySelector('#runFlow').addEventListener('click', () => {
 });
 
 hydrateParsedStandard();
+setModuleOneMode('ai');
+loadModuleOneDemos();
 const initialView = window.location.hash.slice(1);
 if (['workspace', 'standards', 'announcements', 'policies'].includes(initialView)) showView(initialView);
 lucide.createIcons();
