@@ -27,6 +27,7 @@ const demoInputCatalog = [
     id: 'vehicle-refrigerator',
     title: '车载冰箱温控与性能技术要求',
     industry: '家电 / 制冷',
+    defaultTemplateId: 'vehicle-refrigerator',
     fileName: 'vehicle-refrigerator-tech-requirements-demo.docx',
     markdownFile: 'vehicle-refrigerator-tech-requirements-demo.md',
     summary: '温控、能耗、噪声、低压保护与验证方案'
@@ -35,6 +36,7 @@ const demoInputCatalog = [
     id: 'evaporator-frost-capacity',
     title: '家用电冰箱蒸发器容霜性能技术要求',
     industry: '家电 / 制冷',
+    defaultTemplateId: 'qbt-8144-evaporator-frost-capacity',
     fileName: 'evaporator-frost-capacity-tech-requirements-demo.docx',
     markdownFile: 'evaporator-frost-capacity-tech-requirements-demo.md',
     summary: '容霜质量、送风衰减、化霜和排水性能'
@@ -43,6 +45,7 @@ const demoInputCatalog = [
     id: 'automotive-cabin-air-filter',
     title: '汽车空调滤清器性能技术要求',
     industry: '汽车零部件',
+    defaultTemplateId: 'automotive-cabin-air-filter',
     fileName: 'automotive-cabin-air-filter-tech-requirements-demo.docx',
     markdownFile: 'automotive-cabin-air-filter-tech-requirements-demo.md',
     summary: '阻力、过滤效率、容尘、密封与振动验证'
@@ -51,9 +54,73 @@ const demoInputCatalog = [
     id: 'central-air-conditioning-cleaning',
     title: '公共场所集中空调通风系统清洗消毒技术要求',
     industry: '建筑运维 / 公共卫生',
+    defaultTemplateId: 'wst-10005-central-air-conditioning',
     fileName: 'central-air-conditioning-cleaning-disinfection-tech-requirements-demo.docx',
     markdownFile: 'central-air-conditioning-cleaning-disinfection-tech-requirements-demo.md',
     summary: '现场勘查、清洗消毒、效果评价和记录归档'
+  }
+];
+
+const referenceTemplateCatalog = [
+  {
+    id: 'automotive-cabin-air-filter',
+    title: '汽车空调滤清器产品参考模板',
+    code: '用户提供 · 998',
+    industry: '汽车零部件',
+    fileName: 'automotive-cabin-air-filter-reference.pdf',
+    downloadName: '998 汽车空调滤清器.pdf',
+    textFile: 'automotive-cabin-air-filter-reference.md',
+    pages: 24,
+    extraction: '扫描件章节骨架',
+    summary: '阻力、过滤效率、容尘、密封与安装接口'
+  },
+  {
+    id: 'vehicle-refrigerator',
+    title: '车载冰箱产品参考模板',
+    code: '用户提供 · 1196',
+    industry: '车载电器 / 制冷',
+    fileName: 'vehicle-refrigerator-reference.pdf',
+    downloadName: '1196 车载冰箱 一清.pdf',
+    textFile: 'vehicle-refrigerator-reference.md',
+    pages: 32,
+    extraction: '扫描件章节骨架',
+    summary: '温控、制冷性能、电源保护、能耗与可靠性'
+  },
+  {
+    id: 'gbt-46274-washing-machine',
+    title: '二手家用电器产品品质鉴定规范 洗衣机',
+    code: 'GB/T 46274-2025',
+    industry: '二手家电 / 品质鉴定',
+    fileName: 'gbt-46274-washing-machine.pdf',
+    downloadName: 'GB-T 46274-2025.pdf',
+    textFile: 'gbt-46274-washing-machine.md',
+    pages: 15,
+    extraction: '原生文本已提取',
+    summary: '鉴定流程、作业条件、技术要求、分级与报告'
+  },
+  {
+    id: 'qbt-8144-evaporator-frost-capacity',
+    title: '家用电冰箱蒸发器容霜能力要求和评价方法',
+    code: 'QB/T 8144-2025',
+    industry: '家电 / 制冷',
+    fileName: 'qbt-8144-evaporator-frost-capacity.pdf',
+    downloadName: 'QB-T 8144-2025 FDIS.pdf',
+    textFile: 'qbt-8144-evaporator-frost-capacity.md',
+    pages: 8,
+    extraction: '原生文本已提取',
+    summary: '容霜能力等级、测试条件与评价方法'
+  },
+  {
+    id: 'wst-10005-central-air-conditioning',
+    title: '公共场所集中空调通风系统清洗消毒规范',
+    code: 'WS/T 10005-2023',
+    industry: '建筑运维 / 公共卫生',
+    fileName: 'wst-10005-central-air-conditioning.pdf',
+    downloadName: 'WS-T 10005-2023 FDIS.pdf',
+    textFile: 'wst-10005-central-air-conditioning.md',
+    pages: 9,
+    extraction: '原生文本已提取',
+    summary: '现场准备、清洗消毒、效果、安全与档案管理'
   }
 ];
 
@@ -126,7 +193,7 @@ const transporter = smtpConfigured
   : null;
 let lastNotificationAt = 0;
 
-const mimeTypes = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
+const mimeTypes = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.md': 'text/markdown; charset=utf-8' };
 function json(response, status, body) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   response.end(JSON.stringify(body));
@@ -507,8 +574,17 @@ function sendDownload(response, path, downloadName, contentType) {
   createReadStream(path).pipe(response);
 }
 
+function sendInline(response, path, contentType) {
+  response.writeHead(200, { 'Content-Type': contentType, 'Content-Disposition': 'inline', 'Cache-Control': 'no-store' });
+  createReadStream(path).pipe(response);
+}
+
 function getDemoInput(id) {
   return demoInputCatalog.find(item => item.id === id);
+}
+
+function getReferenceTemplate(id) {
+  return referenceTemplateCatalog.find(item => item.id === id);
 }
 
 function fallbackDraftDocuments({ sourceName, sourceText, templateName }) {
@@ -621,6 +697,38 @@ async function handleApi(request, response, url) {
       })),
       template: { name: 'GB/T 1.1 常见章节结构（演示）', text: standardTemplateOutline }
     });
+  }
+  if (request.method === 'GET' && url.pathname === '/api/reference-templates') {
+    return json(response, 200, {
+      templates: referenceTemplateCatalog.map(item => ({
+        ...item,
+        previewUrl: `/api/reference-templates/${item.id}/preview`,
+        downloadUrl: `/api/reference-templates/${item.id}/download`,
+        textUrl: `/api/reference-templates/${item.id}/text`
+      }))
+    });
+  }
+  const referenceTemplateMatch = url.pathname.match(/^\/api\/reference-templates\/([a-z0-9-]+)\/(preview|text|download)$/);
+  if (referenceTemplateMatch) {
+    const item = getReferenceTemplate(referenceTemplateMatch[1]);
+    if (!item) return json(response, 404, { error: '参考模板不存在' });
+    const templatePath = join(root, '../reference-templates', item.fileName);
+    if (referenceTemplateMatch[2] === 'preview') {
+      try { await stat(templatePath); } catch { return json(response, 404, { error: '参考模板原件不存在' }); }
+      return sendInline(response, templatePath, 'application/pdf');
+    }
+    if (referenceTemplateMatch[2] === 'text') {
+      try {
+        return json(response, 200, {
+          id: item.id,
+          title: item.title,
+          text: await readFile(join(root, '../reference-templates', item.textFile), 'utf8'),
+          extraction: item.extraction
+        });
+      } catch { return json(response, 404, { error: '参考模板文本不存在' }); }
+    }
+    try { await stat(templatePath); } catch { return json(response, 404, { error: '参考模板原件不存在' }); }
+    return sendDownload(response, templatePath, item.downloadName, 'application/pdf');
   }
   const demoPreviewMatch = url.pathname.match(/^\/api\/demo-inputs\/([a-z0-9-]+)\/(preview|download)$/);
   if (demoPreviewMatch) {
