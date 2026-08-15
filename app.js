@@ -209,7 +209,7 @@ function renderModuleOneTemplateLibrary() {
   const library = document.querySelector('#moduleOneTemplateLibrary');
   library.innerHTML = moduleOneTemplates.map(item => {
     const selected = moduleOneTemplateItem?.id === item.id;
-    return '<article class="module-one-template-card' + (selected ? ' active' : '') + '" data-template-id="' + escapeHtml(item.id) + '" tabindex="0" aria-pressed="' + selected + '"><small>' + escapeHtml(item.industry) + ' · ' + escapeHtml(item.pages) + ' 页</small><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-template-meta"><span>' + escapeHtml(item.code) + '</span><span>' + escapeHtml(item.extraction) + '</span></div><div class="module-one-demo-actions"><button class="button secondary" type="button" data-template-preview>预览 PDF</button><button class="button primary" type="button" data-template-select>' + (selected ? '已用作模板' : '用作模板') + '</button></div></article>';
+    return '<article class="module-one-template-card' + (selected ? ' active' : '') + '" data-template-id="' + escapeHtml(item.id) + '" tabindex="0" aria-pressed="' + selected + '"><small>' + escapeHtml(item.industry) + ' · ' + escapeHtml(item.pages) + ' 页</small><span class="template-selection-state' + (selected ? ' selected' : '') + '">' + (selected ? '当前生成模板' : '可作为生成模板') + '</span><strong>' + escapeHtml(item.title) + '</strong><p>' + escapeHtml(item.summary) + '</p><div class="module-one-template-meta"><span>' + escapeHtml(item.code) + '</span><span>' + escapeHtml(item.extraction) + '</span></div><div class="module-one-demo-actions"><button class="button secondary" type="button" data-template-preview>预览 PDF</button><button class="button primary" type="button" data-template-select>' + (selected ? '已用作模板' : '用作模板') + '</button></div></article>';
   }).join('');
   library.querySelectorAll('.module-one-template-card').forEach(card => {
     const item = moduleOneTemplates.find(candidate => candidate.id === card.dataset.templateId);
@@ -350,13 +350,13 @@ function renderModuleOneOutput() {
 }
 
 const moduleOneGenerationSteps = [
-  '读取研发技术要求',
-  '提取参考模板章节',
-  '映射制冷与温控参数',
-  '生成范围、术语和技术要求',
-  '生成试验方法与检验规则',
-  '检查待确认项和来源字段',
-  '输出三类草案'
+  { title: '第 1 章 范围与适用边界', detail: '识别产品对象、型号与使用场景' },
+  { title: '第 2 章 规范性引用文件', detail: '保留待核验的引用与依据' },
+  { title: '第 3 章 术语和定义', detail: '整理温控、制冷与测温术语' },
+  { title: '第 4 章 技术要求', detail: '映射温度、能耗、噪声与保护指标' },
+  { title: '第 5 章 试验方法', detail: '对应试验条件、步骤和判定方式' },
+  { title: '第 6 章 检验规则', detail: '标记抽样、复测和待确认项' },
+  { title: '输出三类草案', detail: '生成标准草案、编制说明和预研报告' }
 ];
 
 function renderModuleOneGenerationProgress(activeStep = 0, percent = 0, state = 'running') {
@@ -365,7 +365,7 @@ function renderModuleOneGenerationProgress(activeStep = 0, percent = 0, state = 
     const active = state === 'running' && index === activeStep;
     const failed = state === 'failed' && index === activeStep;
     const icon = complete ? 'check' : failed ? 'triangle-alert' : active ? 'loader-circle' : 'circle';
-    return '<li class="' + (complete ? ' complete' : '') + (active ? ' active' : '') + (failed ? ' failed' : '') + '"><i data-lucide="' + icon + '"></i><span>' + step + '</span><small>' + (complete ? '已完成' : failed ? '未完成' : active ? '处理中' : '等待') + '</small></li>';
+    return '<li class="' + (complete ? ' complete' : '') + (active ? ' active' : '') + (failed ? ' failed' : '') + '"><i data-lucide="' + icon + '"></i><span><strong>' + step.title + '</strong><em>' + step.detail + '</em></span><small>' + (complete ? '已完成' : failed ? '未完成' : active ? '处理中' : '等待') + '</small></li>';
   }).join('');
   document.querySelector('#moduleOneGenerationBar').style.width = percent + '%';
   document.querySelector('#moduleOneGenerationPercent').textContent = percent + '%';
@@ -390,7 +390,7 @@ function openModuleOneGenerationProgress() {
     activeStep = Math.min(moduleOneGenerationSteps.length - 1, activeStep + 1);
     percent = Math.min(88, percent + 12);
     renderModuleOneGenerationProgress(activeStep, percent);
-    document.querySelector('#moduleOneGenerationStatus').textContent = '正在处理：' + moduleOneGenerationSteps[activeStep];
+    document.querySelector('#moduleOneGenerationStatus').textContent = '正在处理：' + moduleOneGenerationSteps[activeStep].title;
   }, 420);
 }
 
@@ -415,6 +415,19 @@ function failModuleOneGenerationProgress(error) {
   document.querySelector('#moduleOneGenerationClose').classList.remove('hidden');
 }
 
+function enterModuleOneReview() {
+  setModuleOneMode('editor');
+  document.querySelector('#editorSectionLabel').textContent = (moduleOneTemplateItem?.title || '参考模板') + ' · 草案 v0.1';
+  document.querySelector('#editorSectionTitle').textContent = '标准草案审阅与条款协同';
+  document.querySelector('#clauseEditor').value = moduleOneDrafts.standardDraft || '';
+  document.querySelector('#editorSubheading').textContent = 'AI 生成与人工审阅';
+  document.querySelector('#editorPlaceholder').textContent = '已进入第二阶段：可直接修订草案，或在飞书文档中继续协同编辑。';
+  document.querySelector('#editorAlert').classList.remove('hidden');
+  document.querySelector('#editorAlert').querySelector('strong').textContent = '草案已生成，等待规范性审核';
+  document.querySelector('#editorAlert').querySelector('p').textContent = '请核验引用文件、指标阈值、试验条件与判定规则后保存修订。';
+  lucide.createIcons();
+}
+
 async function generateModuleOneDrafts() {
   if (!moduleOneSourceText) return notify('请先选择一份研发技术要求');
   const button = document.querySelector('#moduleOneGenerate');
@@ -436,8 +449,9 @@ async function generateModuleOneDrafts() {
     document.querySelector('#moduleOneOutput').classList.remove('hidden');
     renderModuleOneOutput();
     await finishModuleOneGenerationProgress();
+    enterModuleOneReview();
     setFlowStage(2);
-    document.querySelector('#moduleOneOutput').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelector('#clauseEditorWorkbench').scrollIntoView({ behavior: 'smooth', block: 'start' });
     notify(result.mode === 'llm' ? 'LLM 已生成三类草案' : '已生成三类演示草案');
   } catch (error) {
     failModuleOneGenerationProgress(error);

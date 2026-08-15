@@ -32,6 +32,7 @@ dialog { width:min(560px,calc(100% - 30px)); padding:0; border:0; border-radius:
 .module-one-template-card.active { border-color:#5fa79b; background:#f2faf7; box-shadow:inset 3px 0 0 var(--teal); }
 .module-one-template-card small,.module-one-template-card strong,.module-one-template-card p { display:block; }
 .module-one-template-card small { color:#67847f; font-size:9px; }
+.template-selection-state { display:inline-flex; width:max-content; margin-top:5px; padding:2px 5px; border:1px solid #dbe7e5; background:#f7fbfa; color:#71828a; font-size:9px; font-weight:700; }.template-selection-state.selected { border-color:#9bcfc1; background:#e6f4f0; color:#087368; }
 .module-one-template-card strong { margin-top:4px; color:#2e474e; font-size:12px; line-height:1.45; }
 .module-one-template-card p { min-height:29px; margin:4px 0 8px; color:#75858c; font-size:10px; line-height:1.45; }
 .module-one-template-meta { display:flex; flex-wrap:wrap; gap:4px; margin:0 0 9px; }
@@ -73,7 +74,7 @@ dialog { width:min(560px,calc(100% - 30px)); padding:0; border:0; border-radius:
 .generation-progress-track { height:7px; overflow:hidden; margin:20px 0 15px; background:#e7efee; }
 .generation-progress-track span { display:block; width:0; height:100%; background:#128476; transition:width .28s ease; }
 .generation-step-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 16px; margin:0; padding:0; list-style:none; }
-.generation-step-list li { display:grid; grid-template-columns:17px 1fr auto; gap:6px; align-items:center; min-height:30px; color:#819097; border-bottom:1px solid #edf1f1; font-size:11px; }
+.generation-step-list li { display:grid; grid-template-columns:17px 1fr auto; gap:6px; align-items:center; min-height:40px; color:#819097; border-bottom:1px solid #edf1f1; font-size:11px; }.generation-step-list li span { min-width:0; }.generation-step-list li strong,.generation-step-list li em { display:block; }.generation-step-list li strong { overflow:hidden; color:inherit; font-size:11px; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }.generation-step-list li em { margin-top:1px; color:#93a0a4; font-size:9px; font-style:normal; line-height:1.35; }
 .generation-step-list i { width:14px; color:#a8b5b7; }
 .generation-step-list small { color:#9aa6aa; font-size:9px; }
 .generation-step-list li.active { color:#1d625b; font-weight:600; }
