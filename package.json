@@ -1,7 +1,7 @@
 {
   "name": "stdforge",
   "version": "1.0.0",
-  "description": "StdForge 是一个面向标准化工程师与政策研究人员的标准全生命周期协同平台演示。它把“标准公告采集、文件解析、条款级审核与协同修订、政策解读”放在同一条可追溯流程中。",
+  "description": "标准智编 | AI驱动的标准化功能需求协同平台。它把标准公告采集、文件解析、条款级审核与协同修订、政策解读放在同一条可追溯流程中。",
   "main": "pdf-parser/server.mjs",
   "directories": {
     "doc": "docs"
