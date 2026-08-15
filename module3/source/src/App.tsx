@@ -16,15 +16,21 @@ import {
   FileSearch,
   Download,
   ExternalLink,
+  FileDown,
   FolderTree,
   Globe2,
+  History,
   Info,
+  Languages,
   Link2,
   ListChecks,
+  Pencil,
   MapPin,
   Play,
   Plus,
   Radio,
+  RefreshCw,
+  Save,
   Search,
   Send,
   ShieldCheck,
@@ -178,6 +184,44 @@ type CrawlResponse = {
   keywordStats: Array<{ keyword: string; totalHits: number; fetched: number }>
   source: { name: string; domain: string; entryUrl: string; categoryId: string }
 }
+type BilingualMode = 'parallel' | 'english-only'
+type BilingualLanguage = 'zh' | 'en'
+type GlossaryTerm = {
+  id: string
+  source: string
+  target: string
+  domain: string
+  notes: string
+}
+type BilingualSegment = {
+  id: string
+  order: number
+  sourceZh: string
+  targetEn: string
+  status: 'machine' | 'reviewed'
+}
+type BilingualVersion = {
+  version: number
+  language: BilingualLanguage
+  author: string
+  reason: string
+  createdAt: string
+}
+type BilingualTranslation = {
+  id: string
+  title: string
+  mode: BilingualMode
+  segments: BilingualSegment[]
+  createdAt: string
+  updatedAt: string
+  versions: Record<BilingualLanguage, BilingualVersion[]>
+  metadata: { model: string | null }
+}
+type BilingualHealth = {
+  bilingualTranslation: boolean
+  bilingualLlmConfigured: boolean
+  bilingualLlmModel: string | null
+}
 
 const keywordSuggestions = ['冰箱', '白色家电', '制冷', '能效']
 const audiences: RecipientGroup[] = ['标准化工程师', '政策研究人员', '业务负责人']
@@ -251,7 +295,7 @@ const createMarkdownFilename = (title: string, skillId: PolicyInterpretationSkil
   return `${safeTitle || '政策分析'}-${suffix}.md`
 }
 
-function App() {
+function PolicyApp() {
   const [activeTask, setActiveTask] = useState<TaskView>('collect')
   const [keywords, setKeywords] = useState('冰箱、白色家电')
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('最近30天')
@@ -2569,6 +2613,372 @@ function App() {
         </div>
       )}
     </div>
+  )
+}
+
+function App() {
+  const pathname = window.location.pathname.replace(/\/+$/, '')
+  const hashPath = window.location.hash.replace(/^#/, '').replace(/\/+$/, '')
+  const search = new URLSearchParams(window.location.search)
+  const isBilingualPage = pathname.endsWith('/bilingual')
+    || hashPath.endsWith('/bilingual')
+    || search.get('module') === 'bilingual'
+  return isBilingualPage ? <BilingualWorkspace /> : <PolicyApp />
+}
+
+const bilingualSampleDocument = `# 家用和类似用途制冷器具技术要求
+
+## 1 范围
+本文件规定了家用和类似用途制冷器具的术语、性能要求、试验方法和检验规则。
+
+## 2 性能要求
+蒸发器应在额定工况下保持稳定换热能力，化霜过程不应影响冷藏室食品安全。
+
+## 3 隔热要求
+箱体隔热层应具备足够的 thermal insulation 等效性能，并满足能效等级要求。`
+
+function BilingualWorkspace() {
+  const [health, setHealth] = useState<BilingualHealth | null>(null)
+  const [glossary, setGlossary] = useState<GlossaryTerm[]>([])
+  const [glossaryDrafts, setGlossaryDrafts] = useState<Record<string, GlossaryTerm>>({})
+  const [documentTitle, setDocumentTitle] = useState('家用和类似用途制冷器具技术要求')
+  const [documentContent, setDocumentContent] = useState(bilingualSampleDocument)
+  const [generationMode, setGenerationMode] = useState<BilingualMode>('parallel')
+  const [viewMode, setViewMode] = useState<'parallel' | 'english-only'>('parallel')
+  const [translation, setTranslation] = useState<BilingualTranslation | null>(null)
+  const [zhDrafts, setZhDrafts] = useState<Record<string, string>>({})
+  const [enDrafts, setEnDrafts] = useState<Record<string, string>>({})
+  const [newTerm, setNewTerm] = useState({ source: '', target: '', domain: 'refrigeration', notes: '' })
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isSaving, setIsSaving] = useState<BilingualLanguage | null>(null)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const syncTranslationDrafts = (next: BilingualTranslation) => {
+    setTranslation(next)
+    setZhDrafts(Object.fromEntries(next.segments.map((segment) => [segment.id, segment.sourceZh])))
+    setEnDrafts(Object.fromEntries(next.segments.map((segment) => [segment.id, segment.targetEn])))
+    setViewMode(next.mode === 'english-only' ? 'english-only' : 'parallel')
+  }
+
+  const loadBilingualState = async () => {
+    const [healthResponse, glossaryResponse, translationsResponse] = await Promise.all([
+      fetch('/api/health'),
+      fetch('/api/bilingual/glossary'),
+      fetch('/api/bilingual/translations'),
+    ])
+    if (healthResponse.ok) {
+      const data = await healthResponse.json() as BilingualHealth
+      setHealth(data)
+    }
+    if (!glossaryResponse.ok) throw new Error('术语库接口不可用')
+    const glossaryData = await glossaryResponse.json() as { terms: GlossaryTerm[] }
+    setGlossary(glossaryData.terms)
+    setGlossaryDrafts(Object.fromEntries(glossaryData.terms.map((term) => [term.id, term])))
+    if (translationsResponse.ok) {
+      const translationsData = await translationsResponse.json() as { translations: Array<{ id: string }> }
+      const latest = translationsData.translations[0]
+      if (latest && !translation) {
+        const detailResponse = await fetch(`/api/bilingual/translations/${encodeURIComponent(latest.id)}`)
+        if (detailResponse.ok) {
+          const detail = await detailResponse.json() as { translation: BilingualTranslation }
+          syncTranslationDrafts(detail.translation)
+        }
+      }
+    }
+  }
+
+  useEffect(() => {
+    void loadBilingualState().catch((loadError) => {
+      setError(loadError instanceof Error ? loadError.message : '双语模块初始化失败')
+    })
+  }, [])
+
+  const createTranslation = async () => {
+    setIsGenerating(true)
+    setError('')
+    setMessage('')
+    try {
+      const response = await fetch('/api/bilingual/translations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document: { title: documentTitle, content: documentContent },
+          mode: generationMode,
+          author: 'standard-engineer',
+        }),
+      })
+      const data = await response.json() as { translation?: BilingualTranslation; error?: string }
+      if (!response.ok || !data.translation) throw new Error(data.error || `翻译接口返回 HTTP ${response.status}`)
+      syncTranslationDrafts(data.translation)
+      setMessage('英文版本已生成，并按段落完成左右对齐。')
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : '生成英文版本失败')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const saveRevision = async (language: BilingualLanguage) => {
+    if (!translation) return
+    setIsSaving(language)
+    setError('')
+    setMessage('')
+    try {
+      const drafts = language === 'zh' ? zhDrafts : enDrafts
+      const response = await fetch(`/api/bilingual/translations/${encodeURIComponent(translation.id)}/revisions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language,
+          author: 'human-reviewer',
+          reason: language === 'zh' ? '中文人工校对' : '英文人工校对',
+          segments: translation.segments.map((segment) => ({ id: segment.id, text: drafts[segment.id] || '' })),
+        }),
+      })
+      const data = await response.json() as { translation?: BilingualTranslation; error?: string }
+      if (!response.ok || !data.translation) throw new Error(data.error || `保存版本返回 HTTP ${response.status}`)
+      syncTranslationDrafts(data.translation)
+      setMessage(language === 'zh' ? '中文版本已单独保存。' : '英文校对版本已单独保存。')
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : '保存版本失败')
+    } finally {
+      setIsSaving(null)
+    }
+  }
+
+  const saveTerm = async (id: string) => {
+    const draft = glossaryDrafts[id]
+    if (!draft) return
+    setError('')
+    try {
+      const response = await fetch(`/api/bilingual/glossary/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      })
+      const data = await response.json() as { term?: GlossaryTerm; error?: string }
+      if (!response.ok || !data.term) throw new Error(data.error || '术语保存失败')
+      await loadBilingualState()
+      setMessage(`术语“${data.term.source}”已更新。`)
+    } catch (termError) {
+      setError(termError instanceof Error ? termError.message : '术语保存失败')
+    }
+  }
+
+  const deleteTerm = async (id: string) => {
+    setError('')
+    try {
+      const response = await fetch(`/api/bilingual/glossary/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (!response.ok && response.status !== 204) throw new Error('术语删除失败')
+      await loadBilingualState()
+      setMessage('术语已删除。')
+    } catch (termError) {
+      setError(termError instanceof Error ? termError.message : '术语删除失败')
+    }
+  }
+
+  const createTerm = async () => {
+    setError('')
+    try {
+      const response = await fetch('/api/bilingual/glossary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTerm),
+      })
+      const data = await response.json() as { term?: GlossaryTerm; error?: string }
+      if (!response.ok || !data.term) throw new Error(data.error || '术语新增失败')
+      setNewTerm({ source: '', target: '', domain: 'refrigeration', notes: '' })
+      await loadBilingualState()
+      setMessage(`术语“${data.term.source}”已加入术语库。`)
+    } catch (termError) {
+      setError(termError instanceof Error ? termError.message : '术语新增失败')
+    }
+  }
+
+  const downloadTranslation = (language: 'zh' | 'en' | 'parallel') => {
+    if (!translation) return
+    window.location.href = `/api/bilingual/translations/${encodeURIComponent(translation.id)}/download?language=${language}`
+  }
+
+  const lastZhVersion = translation?.versions.zh.at(-1)
+  const lastEnVersion = translation?.versions.en.at(-1)
+
+  return (
+    <div className="bilingual-shell">
+      <header className="bilingual-header">
+        <a href="./" className="bilingual-back-link"><ChevronLeft size={17} /> 返回政策模块</a>
+        <div>
+          <Languages size={36} />
+          <h1>中英文标准草案对照工作台</h1>
+          <p>面向标准草案、编制说明和预研报告的英文同步生成、人工校对、术语一致性和分版本下载。</p>
+        </div>
+        <span className={`bilingual-model-state ${health?.bilingualLlmConfigured ? 'ready' : 'pending'}`}>
+          {health?.bilingualLlmConfigured ? `已接入 ${health.bilingualLlmModel}` : '等待配置 LLM API'}
+        </span>
+      </header>
+
+      <main className="bilingual-page">
+        <section className="bilingual-flow" aria-label="双语输出流程">
+          {[
+            ['01', '上游中文文档', '标准草案、编制说明或预研报告完成后进入本接口'],
+            ['02', '术语库优先', '制冷行业术语先锁定，再交给翻译模型'],
+            ['03', '双语对照校对', '左右同步查看，中线分隔，中英版本分别保存'],
+            ['04', '多格式下载', '中文、英文、左右对照版独立导出'],
+          ].map(([step, title, text]) => (
+            <article key={step}>
+              <b>{step}</b>
+              <strong>{title}</strong>
+              <span>{text}</span>
+            </article>
+          ))}
+        </section>
+
+        <section className="bilingual-control-grid">
+          <div className="bilingual-document-panel">
+            <div className="bilingual-panel-heading">
+              <div>
+                <span>输入</span>
+                <strong>待翻译中文文档</strong>
+              </div>
+              <button type="button" onClick={() => setDocumentContent(bilingualSampleDocument)}>
+                <RefreshCw size={15} />
+                示例
+              </button>
+            </div>
+            <label>
+              <span>文档标题</span>
+              <input value={documentTitle} onChange={(event) => setDocumentTitle(event.target.value)} />
+            </label>
+            <label>
+              <span>中文正文</span>
+              <textarea value={documentContent} onChange={(event) => setDocumentContent(event.target.value)} />
+            </label>
+            <div className="bilingual-mode-row">
+              <button type="button" className={generationMode === 'parallel' ? 'selected' : ''} onClick={() => setGenerationMode('parallel')}>
+                <ColumnsIcon /> 中文为主，英文对照
+              </button>
+              <button type="button" className={generationMode === 'english-only' ? 'selected' : ''} onClick={() => setGenerationMode('english-only')}>
+                <FileDown size={16} /> 纯英文版
+              </button>
+            </div>
+            <button className="bilingual-generate-button" type="button" onClick={createTranslation} disabled={isGenerating}>
+              <Sparkles size={18} />
+              {isGenerating ? '正在生成英文版本…' : '调用双语接口生成'}
+            </button>
+            {!health?.bilingualLlmConfigured && (
+              <p className="bilingual-config-note">当前服务器尚未配置翻译模型密钥。待接入 DeepSeek/LLM API 后，本按钮会直接生成英文段落。</p>
+            )}
+          </div>
+
+          <div className="bilingual-glossary-panel">
+            <div className="bilingual-panel-heading">
+              <div>
+                <span>术语库</span>
+                <strong>{glossary.length} 个术语</strong>
+              </div>
+              <button type="button" onClick={() => void loadBilingualState()}>
+                <RefreshCw size={15} />
+                刷新
+              </button>
+            </div>
+            <div className="new-term-row">
+              <input placeholder="中文术语" value={newTerm.source} onChange={(event) => setNewTerm((current) => ({ ...current, source: event.target.value }))} />
+              <input placeholder="英文译法" value={newTerm.target} onChange={(event) => setNewTerm((current) => ({ ...current, target: event.target.value }))} />
+              <button type="button" onClick={createTerm} disabled={!newTerm.source.trim() || !newTerm.target.trim()}>
+                <Plus size={15} />
+              </button>
+            </div>
+            <div className="glossary-table">
+              {glossary.map((term) => {
+                const draft = glossaryDrafts[term.id] || term
+                return (
+                  <article key={term.id}>
+                    <input value={draft.source} onChange={(event) => setGlossaryDrafts((current) => ({ ...current, [term.id]: { ...draft, source: event.target.value } }))} />
+                    <input value={draft.target} onChange={(event) => setGlossaryDrafts((current) => ({ ...current, [term.id]: { ...draft, target: event.target.value } }))} />
+                    <button type="button" title="保存术语" onClick={() => void saveTerm(term.id)}><Save size={15} /></button>
+                    <button type="button" title="删除术语" onClick={() => void deleteTerm(term.id)}><Trash2 size={15} /></button>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="bilingual-output-panel">
+          <div className="bilingual-output-toolbar">
+            <div>
+              <span>输出</span>
+              <strong>{translation ? translation.title : '等待生成中英文版本'}</strong>
+              <small>{translation ? `中文 v${lastZhVersion?.version || 0} · 英文 v${lastEnVersion?.version || 0}` : '接口将返回分段对齐 JSON，前端负责展示和校对'}</small>
+            </div>
+            <div className="bilingual-view-switch">
+              <button type="button" className={viewMode === 'parallel' ? 'selected' : ''} onClick={() => setViewMode('parallel')}>
+                <ColumnsIcon /> 左右对照
+              </button>
+              <button type="button" className={viewMode === 'english-only' ? 'selected' : ''} onClick={() => setViewMode('english-only')}>
+                <Globe2 size={15} /> 纯英文
+              </button>
+            </div>
+          </div>
+
+          {!translation ? (
+            <div className="bilingual-empty">
+              <Languages size={32} />
+              <strong>中文和英文将在这里一屏对照</strong>
+              <span>左侧为中文原文，右侧为英文译文，中间分隔线用于快速比对条款对应关系。</span>
+            </div>
+          ) : viewMode === 'parallel' ? (
+            <div className="parallel-editor">
+              <div className="parallel-column-title"><span>中文原文</span><span>English Version</span></div>
+              {translation.segments.map((segment) => (
+                <article key={segment.id} className="parallel-row">
+                  <textarea value={zhDrafts[segment.id] || ''} onChange={(event) => setZhDrafts((current) => ({ ...current, [segment.id]: event.target.value }))} />
+                  <i aria-hidden="true" />
+                  <textarea value={enDrafts[segment.id] || ''} onChange={(event) => setEnDrafts((current) => ({ ...current, [segment.id]: event.target.value }))} />
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="english-only-editor">
+              {translation.segments.map((segment) => (
+                <textarea key={segment.id} value={enDrafts[segment.id] || ''} onChange={(event) => setEnDrafts((current) => ({ ...current, [segment.id]: event.target.value }))} />
+              ))}
+            </div>
+          )}
+
+          <div className="bilingual-actions">
+            <button type="button" onClick={() => void saveRevision('zh')} disabled={!translation || isSaving !== null}>
+              <Pencil size={16} />
+              {isSaving === 'zh' ? '保存中文…' : '保存中文版本'}
+            </button>
+            <button type="button" onClick={() => void saveRevision('en')} disabled={!translation || isSaving !== null}>
+              <History size={16} />
+              {isSaving === 'en' ? '保存英文…' : '保存英文版本'}
+            </button>
+            <button type="button" onClick={() => downloadTranslation('zh')} disabled={!translation}>
+              <Download size={16} /> 下载中文
+            </button>
+            <button type="button" onClick={() => downloadTranslation('en')} disabled={!translation}>
+              <Download size={16} /> 下载英文
+            </button>
+            <button type="button" className="primary" onClick={() => downloadTranslation('parallel')} disabled={!translation}>
+              <FileDown size={16} /> 下载对照版
+            </button>
+          </div>
+          {(message || error) && <p className={`bilingual-message ${error ? 'error' : 'success'}`}>{error || message}</p>}
+        </section>
+      </main>
+    </div>
+  )
+}
+
+function ColumnsIcon() {
+  return (
+    <span className="columns-icon" aria-hidden="true">
+      <i />
+      <i />
+    </span>
   )
 }
 

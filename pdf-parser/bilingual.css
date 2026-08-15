@@ -1,0 +1,60 @@
+.parser-header-actions { display:flex; align-items:center; gap:14px; }
+.header-link { min-height:32px; padding:0 10px; display:inline-flex; align-items:center; gap:6px; border:1px solid #38505a; border-radius:4px; color:#d3e5ec; background:#1b3039; text-decoration:none; font-size:11px; font-weight:600; }
+.header-link:hover { background:#23414b; }
+.header-link i { width:15px; }
+.bilingual-page { max-width:1320px; }
+.bilingual-hero { min-height:150px; margin-bottom:14px; padding:24px; display:grid; grid-template-columns:minmax(0,1fr) 320px; align-items:center; gap:24px; border:1px solid #2f4d55; background:#1e3440; color:#fff; box-shadow:0 10px 30px rgba(30,47,57,.07); }
+.bilingual-hero p { margin:0; color:#77d5c8; font-size:10px; font-weight:700; letter-spacing:.6px; }
+.bilingual-hero h1 { margin:5px 0 8px; font-size:28px; letter-spacing:0; }
+.bilingual-hero span { display:block; max-width:760px; color:#c7d6dc; font-size:12px; line-height:1.8; }
+.api-status { padding:14px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.07); }
+.api-status strong,.api-status code,.api-status small { display:block; }
+.api-status strong { color:#dff9f4; font-size:12px; }
+.api-status code { margin:8px 0; color:#fff; font:11px/1.6 "IBM Plex Mono",monospace; }
+.api-status small { color:#afc4cc; font-size:10px; line-height:1.6; }
+.bilingual-flow { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+.bilingual-flow article { min-height:118px; padding:14px; border:1px solid #d5e0e2; background:#fff; box-shadow:0 5px 18px rgba(30,47,57,.045); }
+.bilingual-flow b { display:inline-grid; place-items:center; width:28px; height:22px; margin-bottom:8px; color:var(--teal); background:var(--teal-soft); border-radius:3px; font-size:10px; }
+.bilingual-flow strong,.bilingual-flow span { display:block; }
+.bilingual-flow strong { color:#22353d; font-size:13px; }
+.bilingual-flow span { margin-top:5px; color:var(--muted); font-size:11px; line-height:1.65; }
+.bilingual-grid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(380px,.95fr); gap:14px; margin-bottom:14px; }
+.section-heading.compact { min-height:56px; }
+.panel-body { padding:15px; }
+.bilingual-field { display:grid; gap:6px; margin-bottom:12px; }
+.bilingual-field span { color:#4d646d; font-size:11px; font-weight:600; }
+.bilingual-field input,.bilingual-field textarea,.term-create-row input,.term-table input,.parallel-row textarea,.english-editor textarea { width:100%; border:1px solid #c8d3d7; border-radius:4px; outline-color:var(--teal); background:#fff; color:#22353d; }
+.bilingual-field input,.term-create-row input,.term-table input { height:36px; padding:0 9px; font-size:12px; }
+.bilingual-field textarea { min-height:248px; padding:11px; resize:vertical; line-height:1.7; }
+.mode-row,.output-toolbar,.version-bar { display:flex; flex-wrap:wrap; gap:8px; }
+.mode-row button,.output-toolbar button { min-height:33px; padding:0 11px; display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid #c8d3d7; border-radius:4px; color:#4a5d66; background:#fff; font-size:11px; font-weight:600; }
+.mode-row button.selected,.output-toolbar button.selected { color:#076b61; border-color:#8ecbc0; background:var(--teal-soft); }
+.mode-row i,.output-toolbar i { width:15px; }
+.full-width { width:100%; margin-top:12px; }
+.api-note { margin:10px 0 0; padding:10px; color:#80590f; background:#fff8e5; border:1px solid #eddca9; font-size:11px; line-height:1.65; }
+.term-create-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px; gap:8px; margin-bottom:10px; }
+.term-table { max-height:334px; overflow:auto; display:grid; gap:8px; padding-right:2px; }
+.term-row { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr) 34px 34px; gap:7px; }
+.term-row button { min-height:34px; padding:0; }
+.bilingual-output-panel { margin-bottom:24px; }
+.empty-output { min-height:320px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#89979e; border:1px dashed #c8d3d7; background:#f8fbfa; text-align:center; }
+.empty-output i { width:34px; height:34px; color:#86bbb2; }
+.empty-output strong { color:#52636b; font-size:13px; }
+.empty-output span { max-width:420px; font-size:11px; }
+.parallel-editor,.english-editor { border:1px solid #cfd9dc; background:#fff; }
+.parallel-heading,.parallel-row { display:grid; grid-template-columns:minmax(0,1fr) 2px minmax(0,1fr); }
+.parallel-heading { min-height:40px; align-items:center; border-bottom:1px solid #dce5e7; background:#f4faf8; }
+.parallel-heading span { padding:0 13px; color:#24413f; font-size:11px; font-weight:700; }
+.parallel-heading i,.parallel-row i { width:2px; height:100%; background:var(--teal); }
+.parallel-row { min-height:138px; }
+.parallel-row + .parallel-row { border-top:1px solid #e4ebed; }
+.parallel-row textarea,.english-editor textarea { min-height:138px; padding:12px 13px; border:0; border-radius:0; resize:vertical; line-height:1.7; background:transparent; }
+.parallel-row textarea:focus,.english-editor textarea:focus { background:#fbfefd; outline:2px solid rgba(8,120,109,.13); outline-offset:-2px; }
+.english-editor textarea { border-bottom:1px solid #e4ebed; }
+.english-editor textarea:last-child { border-bottom:0; }
+.version-bar { align-items:center; justify-content:flex-end; margin-top:12px; }
+.version-bar span { margin-right:auto; color:#687a82; font-size:11px; }
+.toast { position:fixed; right:22px; bottom:22px; z-index:10; transform:translateY(100px); display:flex; align-items:center; gap:8px; padding:10px 13px; border:1px solid #b9d5cf; border-radius:4px; color:#17695f; background:#f2faf8; box-shadow:0 8px 24px rgba(24,42,52,.12); transition:transform .2s ease; font-size:11px; }
+.toast.visible { transform:translateY(0); }
+@media (max-width:1000px) { .bilingual-hero,.bilingual-grid { grid-template-columns:1fr; }.bilingual-flow { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:620px) { .parser-header-actions { gap:8px; }.header-link { padding:0 8px; }.bilingual-hero { padding:18px; }.bilingual-hero h1 { font-size:22px; }.bilingual-flow { grid-template-columns:1fr; }.term-create-row,.term-row { grid-template-columns:1fr; }.parallel-heading { display:none; }.parallel-row { grid-template-columns:1fr; }.parallel-row i { height:2px; width:100%; }.version-bar { display:grid; grid-template-columns:1fr; }.version-bar span { margin-right:0; }.version-bar .button,.mode-row button,.output-toolbar button { width:100%; } }

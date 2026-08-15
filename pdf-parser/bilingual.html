@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="StdForge 中英文标准草案对照工作台" />
+    <title>中英对照 | StdForge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="bilingual.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="index.html"><span class="brand-mark">SF</span><span><strong>Bilingual Draft</strong><small>StdForge 中英对照输出</small></span></a>
+      <div class="parser-header-actions">
+        <a class="header-link" href="index.html"><i data-lucide="arrow-left"></i>返回解析工作台</a>
+        <div class="server-state ready"><span></span><em>接口化演示页</em></div>
+      </div>
+    </header>
+
+    <main class="bilingual-page">
+      <section class="bilingual-hero">
+        <div>
+          <p>需求一-③ · 中英文版本同步输出</p>
+          <h1>中英文标准草案对照工作台</h1>
+          <span>上游中文草案、编制说明或预研报告完成后，在这里进入英文同步生成、术语一致性校对和分版本下载。</span>
+        </div>
+        <div class="api-status">
+          <strong>API 接入点</strong>
+          <code>POST /api/bilingual/translations</code>
+          <small>待配置 DeepSeek/LLM API 后切换为真实翻译服务</small>
+        </div>
+      </section>
+
+      <section class="bilingual-flow">
+        <article><b>01</b><strong>接收上游中文文档</strong><span>标准草案、编制说明、预研报告均可作为输入。</span></article>
+        <article><b>02</b><strong>术语库优先</strong><span>冰箱与制冷行业术语先锁定，再进入翻译链路。</span></article>
+        <article><b>03</b><strong>左右对照校对</strong><span>中间线分隔，中英文逐段同步查看和修改。</span></article>
+        <article><b>04</b><strong>分别保存下载</strong><span>中文、英文和中英对照版可独立导出。</span></article>
+      </section>
+
+      <section class="bilingual-grid">
+        <section class="panel bilingual-input-panel">
+          <div class="section-heading compact">
+            <div><p>输入</p><h2>中文文档</h2></div>
+            <span class="section-note">Markdown / 纯文本</span>
+          </div>
+          <div class="panel-body">
+            <label class="bilingual-field"><span>文档标题</span><input id="documentTitle" value="家用和类似用途制冷器具技术要求" /></label>
+            <label class="bilingual-field"><span>中文正文</span><textarea id="sourceText"></textarea></label>
+            <div class="mode-row">
+              <button class="selected" type="button" data-mode="parallel"><i data-lucide="columns-2"></i>中文为主，英文对照</button>
+              <button type="button" data-mode="english"><i data-lucide="file-text"></i>纯英文版</button>
+            </div>
+            <button class="button primary full-width" id="generateButton"><i data-lucide="sparkles"></i>生成英文版本</button>
+            <p class="api-note">当前页面已将翻译逻辑与展示、下载解耦；真实对接时只需要把本地演示翻译替换为 LLM/人工翻译接口返回的分段 JSON。</p>
+          </div>
+        </section>
+
+        <section class="panel bilingual-glossary-panel">
+          <div class="section-heading compact">
+            <div><p>术语库</p><h2>制冷行业译法</h2></div>
+            <span class="section-note" id="termCount">0 个术语</span>
+          </div>
+          <div class="panel-body">
+            <div class="term-create-row">
+              <input id="termZh" placeholder="中文术语" />
+              <input id="termEn" placeholder="英文译法" />
+              <button class="button secondary" id="addTerm"><i data-lucide="plus"></i></button>
+            </div>
+            <div class="term-table" id="termTable"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel bilingual-output-panel">
+        <div class="section-heading compact">
+          <div><p>输出与校对</p><h2 id="outputTitle">中英文对照结果</h2></div>
+          <div class="output-toolbar">
+            <button class="selected" type="button" data-view="parallel"><i data-lucide="columns-2"></i>左右对照</button>
+            <button type="button" data-view="english"><i data-lucide="globe-2"></i>纯英文</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="empty-output" id="emptyOutput">
+            <i data-lucide="languages"></i>
+            <strong>英文版本将在这里生成</strong>
+            <span>左中文、右英文，中间分隔线用于逐段核对标准条款。</span>
+          </div>
+          <div class="parallel-editor hidden" id="parallelEditor">
+            <div class="parallel-heading"><span>中文原文</span><i></i><span>English Version</span></div>
+            <div id="segmentList"></div>
+          </div>
+          <div class="english-editor hidden" id="englishEditor"></div>
+          <div class="version-bar">
+            <span id="versionInfo">中文 v0 · 英文 v0</span>
+            <button class="button secondary" id="saveZh"><i data-lucide="save"></i>保存中文版本</button>
+            <button class="button secondary" id="saveEn"><i data-lucide="history"></i>保存英文版本</button>
+            <button class="button secondary" id="downloadZh"><i data-lucide="download"></i>下载中文</button>
+            <button class="button secondary" id="downloadEn"><i data-lucide="download"></i>下载英文</button>
+            <button class="button primary" id="downloadParallel"><i data-lucide="file-down"></i>下载对照版</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><i data-lucide="info"></i><span></span></div>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="bilingual.js"></script>
+  </body>
+</html>
