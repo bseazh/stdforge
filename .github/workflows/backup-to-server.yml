@@ -79,6 +79,8 @@ jobs:
           set -eu
           cd "$DEPLOY_PATH"
           mkdir -p pdf-parser/.runtime
+          pkill -f 'node .*pdf-parser/server\.mjs' 2>/dev/null || true
+          sleep 1
           if [ -f pdf-parser/.runtime/server.pid ]; then
             previous_pid=$(cat pdf-parser/.runtime/server.pid)
             if kill -0 "$previous_pid" 2>/dev/null; then kill "$previous_pid"; fi
