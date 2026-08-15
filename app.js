@@ -25,6 +25,10 @@ function notify(message) {
 }
 
 function showView(id) {
+  if (id === 'policies') {
+    window.location.assign('module3/dist/index.html');
+    return;
+  }
   document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === id));
   document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === id));
   document.querySelectorAll('.module-tab').forEach(item => item.classList.toggle('active', item.dataset.view === id));
