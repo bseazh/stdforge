@@ -113,6 +113,22 @@ function splitSegments(text) {
   return String(text || '').trim().split(/\n{2,}/).map(item => item.trim()).filter(Boolean);
 }
 
+function segmentsToText(language) {
+  if (!translation) return '';
+  return translation.segments.map(segment => segment[language]).join('\n\n');
+}
+
+function textToSegments(text, language) {
+  if (!translation) return;
+  const parts = splitSegments(text);
+  const nextLength = Math.max(parts.length, translation.segments.length);
+  translation.segments = Array.from({ length: nextLength }, (_, index) => ({
+    id: translation.segments[index]?.id || `segment-${index + 1}`,
+    zh: language === 'zh' ? (parts[index] || '') : (translation.segments[index]?.zh || ''),
+    en: language === 'en' ? (parts[index] || '') : (translation.segments[index]?.en || '')
+  })).filter(segment => segment.zh || segment.en);
+}
+
 function demoTranslate(text) {
   const glossaryHit = terms.find(term => text.includes(term.zh));
   let result = text
@@ -143,40 +159,38 @@ function renderTranslation() {
   elements.parallelEditor.classList.toggle('hidden', view !== 'parallel');
   elements.englishEditor.classList.toggle('hidden', view !== 'english');
   elements.versionInfo.textContent = `中文 v${zhVersion} · 英文 v${enVersion}${englishStale ? ' · 英文待更新' : ''}`;
-  elements.segmentList.innerHTML = translation.segments.map(segment => `
-    <article class="parallel-row doc-row" data-id="${segment.id}">
-      <section class="doc-page zh-doc" aria-label="中文段落">
+  elements.segmentList.innerHTML = `
+    <article class="parallel-row doc-row">
+      <section class="doc-page zh-doc" aria-label="中文 Markdown 文档">
         <span class="doc-page-label">中文</span>
-        <div class="doc-block" data-lang="zh" contenteditable="true" spellcheck="false">${escapeHtml(segment.zh)}</div>
+        <div class="doc-block full-doc-block" data-lang="zh" contenteditable="true" spellcheck="false">${escapeHtml(segmentsToText('zh'))}</div>
       </section>
       <i aria-hidden="true"></i>
-      <section class="doc-page en-doc" aria-label="英文段落">
+      <section class="doc-page en-doc" aria-label="English Markdown document">
         <span class="doc-page-label">English</span>
-        <div class="doc-block" data-lang="en" contenteditable="true" spellcheck="false">${escapeHtml(segment.en)}</div>
+        <div class="doc-block full-doc-block" data-lang="en" contenteditable="true" spellcheck="false">${escapeHtml(segmentsToText('en'))}</div>
       </section>
     </article>
-  `).join('');
-  elements.englishEditor.innerHTML = translation.segments.map(segment => `
+  `;
+  elements.englishEditor.innerHTML = `
     <section class="doc-page english-only-page">
-      <div class="doc-block" data-id="${segment.id}" contenteditable="true" spellcheck="false">${escapeHtml(segment.en)}</div>
+      <div class="doc-block full-doc-block" data-lang="en" contenteditable="true" spellcheck="false">${escapeHtml(segmentsToText('en'))}</div>
     </section>
-  `).join('');
+  `;
   bindSegmentInputs();
 }
 
 function bindSegmentInputs() {
-  elements.segmentList.querySelectorAll('.parallel-row').forEach(row => {
-    row.querySelector('[data-lang="zh"]').addEventListener('input', event => {
-      translation.segments.find(segment => segment.id === row.dataset.id).zh = event.currentTarget.innerText.trim();
-      markEnglishStale();
-    });
-    row.querySelector('[data-lang="en"]').addEventListener('input', event => {
-      translation.segments.find(segment => segment.id === row.dataset.id).en = event.currentTarget.innerText.trim();
+  elements.segmentList.querySelectorAll('[data-lang]').forEach(block => {
+    block.addEventListener('input', event => {
+      const language = block.dataset.lang;
+      textToSegments(event.currentTarget.innerText.trim(), language);
+      if (language === 'zh') markEnglishStale();
     });
   });
-  elements.englishEditor.querySelectorAll('[contenteditable]').forEach(block => {
+  elements.englishEditor.querySelectorAll('[data-lang="en"]').forEach(block => {
     block.addEventListener('input', event => {
-      translation.segments.find(segment => segment.id === block.dataset.id).en = event.currentTarget.innerText.trim();
+      textToSegments(event.currentTarget.innerText.trim(), 'en');
     });
   });
 }
@@ -185,15 +199,25 @@ function generateTranslation() {
   const title = elements.title.value.trim();
   const parts = splitSegments(elements.source.value);
   if (!title || !parts.length) return notify('请先填写文档标题和中文正文');
-  translation = {
-    title,
-    mode,
-    segments: parts.map((zh, index) => ({ id: `segment-${index + 1}`, zh, en: demoTranslate(zh) }))
-  };
-  zhVersion = 1;
-  enVersion = 1;
+  if (translation) {
+    translation.title = title;
+    translation.segments = parts.map((zh, index) => ({
+      id: translation.segments[index]?.id || `segment-${index + 1}`,
+      zh,
+      en: demoTranslate(zh)
+    }));
+    enVersion += 1;
+  } else {
+    translation = {
+      title,
+      mode,
+      segments: parts.map((zh, index) => ({ id: `segment-${index + 1}`, zh, en: demoTranslate(zh) }))
+    };
+    zhVersion = 1;
+    enVersion = 1;
+  }
   englishStale = false;
-  view = mode === 'english' ? 'english' : 'parallel';
+  view = 'parallel';
   document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('selected', button.dataset.view === view));
   renderTranslation();
   notify('英文版本已生成，术语已按术语库优先替换');
@@ -214,9 +238,16 @@ function refreshEnglishFromChinese() {
 function downloadFile(kind) {
   if (!translation) return notify('请先生成英文版本');
   const safeTitle = translation.title.replace(/[\\/:*?"<>|]/g, '-');
-  const zh = translation.segments.map(segment => segment.zh).join('\n\n');
-  const en = translation.segments.map(segment => segment.en).join('\n\n');
-  const parallel = [`# ${translation.title}`, '', '| 中文 | English |', '| --- | --- |', ...translation.segments.map(segment => `| ${segment.zh.replace(/\|/g, '\\|').replace(/\n/g, '<br>')} | ${segment.en.replace(/\|/g, '\\|').replace(/\n/g, '<br>')} |`)].join('\n');
+  const zh = segmentsToText('zh');
+  const en = segmentsToText('en');
+  const escapeMarkdownCell = value => value.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+  const parallel = [
+    `# ${translation.title}`,
+    '',
+    '| 中文 Markdown | English Markdown |',
+    '| --- | --- |',
+    `| ${escapeMarkdownCell(zh)} | ${escapeMarkdownCell(en)} |`
+  ].join('\n');
   const content = kind === 'zh' ? zh : kind === 'en' ? en : parallel;
   const suffix = kind === 'zh' ? '中文' : kind === 'en' ? 'English' : '中英对照';
   const url = URL.createObjectURL(new Blob([content], { type: 'text/markdown;charset=utf-8' }));
@@ -239,6 +270,14 @@ document.querySelectorAll('[data-view]').forEach(button => {
     view = button.dataset.view;
     document.querySelectorAll('[data-view]').forEach(item => item.classList.toggle('selected', item === button));
     renderTranslation();
+  });
+});
+
+document.querySelectorAll('[data-workspace-tab]').forEach(button => {
+  button.addEventListener('click', () => {
+    const tab = button.dataset.workspaceTab;
+    document.querySelectorAll('[data-workspace-tab]').forEach(item => item.classList.toggle('active', item === button));
+    document.querySelectorAll('[data-workspace-panel]').forEach(panel => panel.classList.toggle('active', panel.dataset.workspacePanel === tab));
   });
 });
 
