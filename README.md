@@ -4,17 +4,74 @@
   <img src="assets/generated/1786762413865-f156d0dd0512b1e5.png" alt="条条是道：标准采集、结构化、审核、协同与发布流程" width="100%" />
 </p>
 
-条条是道（ClauseFlow）是一个面向标准化工程师与政策研究人员的 AI 标准全生命周期协同平台演示。它把“标准公告采集、文件解析、条款级审核与协同修订、政策解读”放在同一条可追溯流程中。
+<p align="center">
+  <strong>让每一条标准，都有道可循。</strong><br />
+  面向标准化工程师、政策研究人员与评审专家的 AI 标准全生命周期协同平台。
+</p>
 
-## 演示范围
+<p align="center">
+  <a href="https://stdforge.hehaizhao.site">在线体验</a> ·
+  <a href="docs/PRD.md">产品需求文档</a> ·
+  <a href="https://my.feishu.cn/wiki/IG9ewEqHqiOmAiktf5LcQbrQnpg">团队需求文档（飞书权限内访问）</a>
+</p>
 
-- 模块一：导入 PDF/DOCX、条款结构化、规范性审核、AI 修改建议、条款级修订留痕、协同评审。
-- 模块二：公开标准网站的元数据采集、关联标准追踪、起草单位/领域关联入口。
-- 模块三：政策采集后的分类、原文依据、AI 解读草稿和人工审核状态。
+## 项目概述
 
-这是一个零构建依赖的前端原型。直接在浏览器打开 `index.html` 即可运行，除邮件通知外的交互均使用模拟数据，不会连接外部站点或下载文件。
+条条是道（ClauseFlow）将标准公告采集、文件解析、条款级审核、协同修订、评审通知和政策关联放到一条可追溯流程中。黑客松版本聚焦于跑通核心演示闭环，而不是替代正式的标准发布或委员会管理系统。
+
+示范标准：`GB/T 46274-2025《二手家用电器产品品质鉴定规范 洗衣机》`。
+
+## 现阶段可交付内容
+
+| 能力模块 | 当前状态 | 现阶段可完成的任务 |
+| --- | --- | --- |
+| 标准协同工作台 | 可演示 | 展示标准概览、条款树、审核问题、AI 修改建议、修订记录与评审状态。 |
+| 标准文件解析 | 可配置运行 | 上传 PDF，调用 MinerU 解析，查看 Markdown / 源码 / ZIP 结果并下载。 |
+| 条款级审核 | 演示实现 | 展示规范性用语、条件完整性、术语一致性、引用文件等问题与处置状态。 |
+| 协同评审通知 | 可配置运行 | 在服务端预设 SMTP 后，发起评审可通知固定评审组；浏览器不能指定收件人。 |
+| 飞书文档同步 | 可配置运行 | 解析完成后，将 Markdown 以追加方式同步到有编辑权限的飞书文档。 |
+| 公告、组织与政策 | 演示实现 | 用内置数据展示关联标准公告、起草组织、政策解读及原文依据。 |
+| 线上部署与备份 | 已上线 | `main` 分支每次推送自动同步至服务器，并更新公开站点。 |
+
+> **当前定位**：已具备可完整演示的黑客松 MVP。页面中的公告采集、企业关系、政策解读和部分审核结论仍是演示数据；它们的真实数据接口已在 PRD 中定义，尚未接入生产数据源。
+
+## 三大业务模块
+
+### 1. 标准协同编制与审核
+
+- 合法上传 PDF / DOCX，保留来源链接、文件哈希和导入记录。
+- 将文档组织为范围、规范性引用文件、术语、技术要求、试验方法、附录等条款树。
+- 展示可定位的审核问题、依据与修改建议；支持采纳、关闭和修订留痕。
+- 发起评审时调用服务端邮件通知，不把收件人或敏感配置暴露给浏览器。
+
+### 2. 公告与组织追踪
+
+- 展示标准号、名称、状态、发布日期、实施日期、ICS / CCS 与来源链接。
+- 提供关联标准、起草单位、技术委员会和企业关系的演示入口。
+- 为后续合规采集保留来源站点、关键词、采集频率和去重的接口位置。
+
+### 3. 政策收集与解读
+
+- 按来源、产业和地区呈现政策信息。
+- 以“适用对象、核心变化、建议动作、风险提示”组织 AI 解读草稿。
+- 每条结论必须关联原文证据；未经人工审核不得推送。
+
+## 五分钟演示路径
+
+```text
+1. 打开工作台，查看 GB/T 46274-2025 的标准概览与待处理问题
+2. 进入“标准编制”，定位一个条款，查看审核依据和 AI 修改建议
+3. 采纳建议或保存修订，展示条款级版本留痕
+4. 点击“发起评审”，展示服务端固定评审组邮件通知
+5. 回到工作台，查看关联公告与政策原文依据
+6. 打开 PDF 解析页，上传文件并展示 MinerU 的结构化结果与飞书同步入口
+```
 
 ## 本地运行
+
+### 仅体验工作台
+
+该部分是零构建依赖的静态页面：
 
 ```bash
 git clone https://github.com/bseazh/stdforge.git
@@ -22,75 +79,101 @@ cd stdforge
 open index.html
 ```
 
-也可以用任意静态 HTTP 服务打开目录。
+也可使用任意静态 HTTP 服务打开根目录。
 
-## 邮件通知
+### 启动 PDF 解析与通知服务
 
-“发起评审”会调用服务端 `POST /api/notifications/review`，向 `NOTIFICATION_RECIPIENTS` 中预先配置的地址发送评审通知。收件人、邮件正文和发件地址均不由浏览器传入，因此公开页面不会成为邮件转发器；服务端默认将连续发送限制为每 60 秒一次。
-
-将 `.env.example` 复制为本机 `.env.smtp.local` 并填写 SMTP 授权码，`.env.smtp.local` 已被 Git 忽略，且不会覆盖已有的飞书 `.env.local`。163 邮箱使用 `smtp.163.com:465` 和 SSL：
+要求 Node.js 20+、`unzip` 命令，以及按需配置的 MinerU / SMTP / 飞书凭据。
 
 ```bash
-cd stdforge
+npm ci
 cp .env.example .env.smtp.local
 npm run start:parser
 ```
 
-部署环境中的 Caddy 已将主工作台的 `/api/*` 转发到该服务，因此进入“标准编制”后点击“发起评审”即可发送通知。不要把 SMTP 授权码写进前端代码、Kubernetes ConfigMap 或 Git 仓库；生产环境应改用部署平台的 Secret 注入相同环境变量。
+默认访问地址为 `http://127.0.0.1:4173`。PDF 解析页面位于 `pdf-parser/index.html`；独立邮件连通性测试页为 `email-test.html`。
 
-独立测试页面位于 `/email-test.html`，会先检查 `/api/health` 的 SMTP 配置状态，再调用 `POST /api/notifications/test` 发送固定模板的连通性测试邮件。
+## 配置与密钥
 
-## MinerU PDF 解析
+所有密钥只能通过本地忽略文件或部署平台 Secret 注入，**禁止**写入前端、Kubernetes ConfigMap 或 Git 仓库。
 
-MinerU 令牌只能通过环境变量传入，禁止写入仓库、前端、脚本或任何文件。解析结果默认存放在被 Git 忽略的 `data/mineru/` 中。
+| 配置项 | 用途 | 是否必需 |
+| --- | --- | --- |
+| `MINERU_TOKEN` | 调用 MinerU 解析 PDF | 仅 PDF 解析需要 |
+| `SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASS` | 发起评审的服务端邮件通知 | 仅邮件通知需要 |
+| `SMTP_FROM`、`NOTIFICATION_RECIPIENTS` | 邮件发件人和固定评审组 | 仅邮件通知需要 |
+| `FEISHU_APP_ID`、`FEISHU_APP_SECRET` | 将解析后的 Markdown 追加到飞书文档 | 仅飞书同步需要 |
+
+建议将 SMTP 配置保存在 `.env.smtp.local`，将 MinerU / 飞书配置保存在 `.env.local`。二者均已被 Git 忽略。
+
+### 命令行解析示例
 
 ```bash
-MINERU_TOKEN='<your-token>' node scripts/mineru-parse.mjs /absolute/path/to/standard.pdf --output data/mineru/GBT46274-2025
-unzip -oq data/mineru/GBT46274-2025/mineru-result.zip -d data/mineru/GBT46274-2025
-node scripts/build-standard-data.mjs data/mineru/GBT46274-2025 data/standard-data.js
+MINERU_TOKEN='<your-token>' node scripts/mineru-parse.mjs /absolute/path/to/standard.pdf \
+  --output data/mineru/GBT46274-2025
+
+unzip -oq data/mineru/GBT46274-2025/mineru-result.zip \
+  -d data/mineru/GBT46274-2025
+
+node scripts/build-standard-data.mjs \
+  data/mineru/GBT46274-2025 data/standard-data.js
 ```
 
-`data/standard-data.js` 是页面可直接加载的轻量解析摘要；它保存标准编号、标题、页数、解析块数、章节标题和引用文件，不提交原始 PDF、完整 Markdown、图像或 MinerU ZIP。
+`data/standard-data.js` 仅保存页面展示所需的轻量摘要；原始 PDF、完整 Markdown、图片和 MinerU ZIP 默认不提交到 Git。
 
-## 目录
+## 服务接口
+
+| 接口 | 说明 |
+| --- | --- |
+| `GET /api/health` | 返回 PDF 解析、SMTP 与飞书配置状态。 |
+| `POST /api/parse` | 上传单个 PDF（演示限制 30 MB）并创建 MinerU 解析任务。 |
+| `POST /api/notifications/review` | 向服务端预配置的评审组发送评审通知。 |
+| `POST /api/notifications/test` | 发送固定模板的 SMTP 连通性测试邮件。 |
+
+后续业务 API 契约见 [PRD](docs/PRD.md)，包括标准导入、条款修订、审核、来源采集与政策解读等接口。
+
+## 项目结构
 
 ```text
 .
-├── index.html       # 单页演示界面
-├── styles.css       # 响应式样式
-├── app.js           # 演示状态与交互流程
-├── pdf-parser/      # 独立 PDF 上传、解析和下载页面
-└── docs/PRD.md      # 第一版产品需求文档
+├── index.html / app.js / styles.css  # 标准协同工作台
+├── pdf-parser/                       # PDF 上传、MinerU 解析与飞书同步服务
+├── data/standard-data.js             # 页面演示用标准条款摘要
+├── scripts/                          # MinerU 解析与数据构建脚本
+├── deploy/kubernetes.yaml            # 线上静态服务与 API 反向代理配置
+├── .github/workflows/                # 推送后自动同步与部署
+├── docs/PRD.md                       # 第一版产品需求与数据模型
+└── assets/generated/                 # 品牌图标与 README 展板
 ```
 
-## 目标生产架构
+## 当前架构
 
 ```text
-来源站点 / 用户上传
-        -> 采集与存证服务
-        -> PDF/DOCX 解析服务
-        -> 标准条款树 + 关系数据库 + 对象存储
-        -> 规则审核 / RAG / LLM 辅助服务
-        -> 协同编辑、评审、发布与推送
+公开标准元数据 / 合法上传 PDF
+        │
+        ├── MinerU 解析服务 ──> Markdown、结构化结果、ZIP
+        └── 标准协同工作台 ──> 条款树、审核问题、修订与评审
+                                      │
+                          SMTP 固定评审组通知 / 飞书文档追加
+                                      │
+                         公告、组织、政策关联（演示数据）
 ```
 
-原始 PDF/DOCX 必须作为不可修改的证据文件保留。编辑、评论、审核和版本比较都围绕结构化条款发生，最终再渲染为 DOCX/PDF；不要直接修改原 PDF。
+部署链路：`git push origin main` → GitHub Actions → 服务器备份目录 → Kubernetes 静态站点与 API 反向代理。
 
-## 可复用的开源组件
+## 已知边界与下一步
 
-| 能力 | 建议项目 | 生产环境用途 |
-| --- | --- | --- |
-| 标准站点采集 | [Scrapy](https://github.com/scrapy/scrapy) | 定时采集公开元数据、公告和来源链接 |
-| 动态页面采集 | [scrapy-playwright](https://github.com/scrapy-plugins/scrapy-playwright) | 在获得合法访问授权后处理 JS 页面 |
-| 文档解析 | [Docling](https://github.com/docling-project/docling)、[MinerU](https://github.com/opendatalab/MinerU) | PDF/DOCX 到 Markdown、JSON、表格和版面结构 |
-| 文档协同 | [ONLYOFFICE DocumentServer](https://github.com/ONLYOFFICE/DocumentServer) | Word 在线编辑、修订和批注 |
-| 条款实时协作 | [Yjs](https://github.com/yjs/yjs) | 结构化条款的多人实时编辑 |
-| 标准即代码 | [Metanorma](https://github.com/metanorma/metanorma) | 用结构化源数据生成标准文档 |
-| 差异比对 | [diff-match-patch](https://github.com/google/diff-match-patch) | 生成条款级制修订说明 |
+| 优先级 | 后续任务 |
+| --- | --- |
+| P0 | 接入有授权的标准元数据来源；不绕过登录、反爬或下载限制。 |
+| P0 | 用数据库持久化标准、条款、审核问题、修订、评论和通知事件。 |
+| P1 | 增加 GB/T 1.1 规则包、术语库和引用有效性校验。 |
+| P1 | 接入 Yjs / ONLYOFFICE，实现真实多人协作与修订。 |
+| P2 | 加入向量检索、标准对比、企业关系图谱与角色化推送。 |
 
-## 数据与合规边界
+## 数据与合规原则
 
-- 对公开标准页面，采集标准号、名称、日期、状态、来源链接等公开元数据，并保留抓取时间与来源哈希。
-- 是否下载、保存、解析和分发标准全文，必须遵守来源网站规则、标准文本使用许可和组织内部授权。
-- 对需要登录、受访问限制或仅支持在线预览的来源，不绕过技术限制；改由合法接口、人工上传或授权下载接入。
-- 政策解读只能作为草稿，结论必须保留原文依据，并由指定业务人员审核后发布。
+- 原始 PDF / DOCX 作为证据文件保留，编辑行为围绕结构化条款发生；不要直接改原 PDF。
+- 仅采集已授权或公开可访问的元数据与文件，保留来源链接、抓取时间和内容哈希。
+- AI 只生成候选内容、抽取结果或解读草稿；所有标准修改与政策结论必须人工确认。
+- 对需要登录、受访问限制或仅支持在线预览的来源，不绕过技术限制。
