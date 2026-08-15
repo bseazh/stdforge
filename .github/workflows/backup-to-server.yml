@@ -41,13 +41,13 @@ jobs:
           DEPLOY_PATH: /home/ubuntu/Project/stdforge
         run: |
           ssh "$DEPLOY_TARGET" "mkdir -p '$DEPLOY_PATH'"
-          timeout 600s bash -o pipefail -c "tar -czf - \\
+          timeout 600s bash -o pipefail -c "tar -cf - \\
             --exclude=.git --exclude=.env --exclude='.env.*' \\
             --exclude=KB --exclude='KDB/.system' \\
             --exclude='KDB/*/text' --exclude='KDB/*/source' \\
             . | ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \\
             -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \\
-            '$DEPLOY_TARGET' 'tar -xzf - -C \"$DEPLOY_PATH\"'"
+            '$DEPLOY_TARGET' 'tar -xf - -C \"$DEPLOY_PATH\"'"
 
       - name: Provision parser credentials on the deployment server
         env:
