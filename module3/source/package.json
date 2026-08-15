@@ -1,0 +1,34 @@
+{
+  "name": "policy-insight-workbench",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test:crawler": "node scripts/test-local-crawler.mjs",
+    "test:classifier": "node scripts/test-policy-classifier.mjs",
+    "test:interpreter": "node scripts/test-policy-interpreter.mjs",
+    "test:markdown": "node scripts/test-markdown-render.mjs",
+    "test:ui-crawler": "node scripts/test-ui-crawler.mjs",
+    "test:realtime": "node scripts/test-realtime-demo.mjs",
+    "test:smtp": "node scripts/test-smtp-delivery.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^1.31.0",
+    "nodemailer": "^9.0.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
+  }
+}
