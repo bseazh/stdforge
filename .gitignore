@@ -1,6 +1,7 @@
 # MinerU results include source documents and generated binary assets.
 data/mineru/
 pdf-parser/.runtime/
+module3/source/.runtime/
 
 # Runtime knowledge documents and indexes persist beside the application but are not source files.
 KDB/.system/

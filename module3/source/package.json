@@ -10,6 +10,7 @@
     "test:crawler": "node scripts/test-local-crawler.mjs",
     "test:classifier": "node scripts/test-policy-classifier.mjs",
     "test:interpreter": "node scripts/test-policy-interpreter.mjs",
+    "test:bilingual": "node scripts/test-bilingual-api.mjs",
     "test:markdown": "node scripts/test-markdown-render.mjs",
     "test:ui-crawler": "node scripts/test-ui-crawler.mjs",
     "test:realtime": "node scripts/test-realtime-demo.mjs",
