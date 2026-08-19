@@ -6,6 +6,8 @@ import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, resolve } from 'node:path';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
+import { getRuntimeConfigHealth, loadRuntimeConfig } from '../packages/config/runtime-config.mjs';
+import { createRequestId, failure, success } from '../packages/contracts/api-envelope.mjs';
 import { parsePdf, ResultDownloadError } from './mineru-client.mjs';
 import { appendToFeishuDocument } from './feishu-mcp-client.mjs';
 import { createApprovalInstance, getApprovalInstance } from './feishu-approval-client.mjs';
@@ -15,9 +17,8 @@ import { analyzePolicies } from '../module3/source/server/policy-classifier.mjs'
 import { interpretPolicy } from '../module3/source/server/policy-interpreter.mjs';
 
 const root = resolve(import.meta.dirname);
+const projectRoot = resolve(root, '..');
 const runtimeRoot = join(root, '.runtime');
-const port = Number(process.env.PORT || 4173);
-const host = process.env.HOST || '127.0.0.1';
 const maxFileSize = 30 * 1024 * 1024;
 const jobs = new Map();
 const kb = new KnowledgeBase(join(root, '../KDB'));
@@ -146,40 +147,15 @@ const standardTemplateOutline = `# 参考标准模板（演示）
 - 输入中标记为“演示目标，待确认”的数值必须原样保留。`;
 
 await mkdir(runtimeRoot, { recursive: true });
-for (const envFile of ['.env.local', '.env.smtp.local']) {
-  try {
-    const envText = await readFile(resolve(root, `../${envFile}`), 'utf8');
-    for (const line of envText.split(/\r?\n/)) {
-      const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
-      if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
-    }
-  } catch { /* Local config files are optional; deployment normally uses environment variables. */ }
-}
+const runtimeConfig = await loadRuntimeConfig({ root: projectRoot });
 await kb.init();
-const token = process.env.MINERU_TOKEN;
-const llmBaseUrl = (process.env.LLM_BASE_URL || '').replace(/\/$/, '');
-const llmApiKey = process.env.LLM_API_KEY;
-const llmModel = process.env.LLM_MODEL;
+const { server: serverConfig, mineru: { token }, llm, feishu, smtp } = runtimeConfig;
+const { host, port } = serverConfig;
+const { baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel } = llm;
 const policyModelConfig = { baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel };
-const feishuAppId = process.env.FEISHU_APP_ID;
-const feishuAppSecret = process.env.FEISHU_APP_SECRET;
-const feishuDocumentUrl = process.env.FEISHU_DOCUMENT_URL;
-const feishuApprovalCode = process.env.FEISHU_APPROVAL_CODE;
-const feishuInitiatorOpenId = process.env.FEISHU_INITIATOR_OPEN_ID;
-const smtpHost = process.env.SMTP_HOST;
-const smtpPort = Number(process.env.SMTP_PORT || 465);
-const smtpSecure = process.env.SMTP_SECURE !== 'false';
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
-const smtpFrom = process.env.SMTP_FROM || smtpUser;
-const notificationRecipients = (process.env.NOTIFICATION_RECIPIENTS || '')
-  .split(',')
-  .map(value => value.trim())
-  .filter(Boolean);
-const notificationTestAccessToken = process.env.NOTIFICATION_TEST_ACCESS_TOKEN;
-const notificationTestRecipientLimit = Math.max(1, Math.min(20, Number(process.env.NOTIFICATION_TEST_RECIPIENT_LIMIT || 10)));
+const { appId: feishuAppId, appSecret: feishuAppSecret, documentUrl: feishuDocumentUrl, approvalCode: feishuApprovalCode, initiatorOpenId: feishuInitiatorOpenId } = feishu;
+const { host: smtpHost, port: smtpPort, secure: smtpSecure, user: smtpUser, pass: smtpPass, from: smtpFrom, recipients: notificationRecipients, testAccessToken: notificationTestAccessToken, testRecipientLimit: notificationTestRecipientLimit, cooldownMs: notificationCooldownMs } = smtp;
 const notificationTestRecipientsPath = join(runtimeRoot, 'notification-test-recipients.json');
-const notificationCooldownMs = Math.max(0, Number(process.env.NOTIFICATION_COOLDOWN_MS || 60_000));
 const smtpConfigured = Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom && notificationRecipients.length);
 const transporter = smtpConfigured
   ? nodemailer.createTransport({
@@ -669,6 +645,18 @@ async function generateDraftDocuments({ sourceName, sourceText, templateName, te
 }
 
 async function handleApi(request, response, url) {
+  if (request.method === 'GET' && url.pathname === '/api/v1/health') {
+    const configHealth = getRuntimeConfigHealth(runtimeConfig);
+    return json(response, 200, success({
+      service: 'stdforge-api',
+      knowledgeBase: kb.stats(),
+      integrations: configHealth.checks
+    }, {
+      requestId: String(response.getHeader('X-Request-ID')),
+      mode: 'live',
+      source: [{ type: 'runtime-config', configured: configHealth.configured, missing: configHealth.missing }]
+    }));
+  }
   if (request.method === 'POST' && url.pathname === '/api/crawl/miit') {
     try {
       const input = await readJsonRequest(request);
@@ -1072,11 +1060,17 @@ async function serveStatic(response, pathname) {
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  const requestId = createRequestId();
+  response.setHeader('X-Request-ID', requestId);
   try {
     if (url.pathname.startsWith('/api/')) await handleApi(request, response, url);
     else await serveStatic(response, url.pathname);
   } catch (error) {
-    json(response, 500, { error: error.message });
+    if (url.pathname.startsWith('/api/v1/')) {
+      json(response, 500, failure('INTERNAL_ERROR', '服务内部错误', { requestId, retryable: false }));
+    } else {
+      json(response, 500, { error: error.message });
+    }
   }
 });
 

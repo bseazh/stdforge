@@ -14,6 +14,7 @@
   <a href="docs/PRD.md">产品需求文档</a> ·
   <a href="docs/IMPLEMENTATION_PLAN.md">实施蓝图</a> ·
   <a href="docs/P0_ARCHITECTURE_BASELINE.md">P0 架构基线</a> ·
+  <a href="docs/P1_ENGINEERING_FOUNDATION.md">P1-PE 工程化基础</a> ·
   <a href="docs/MODULE_1_TECHNICAL_SOLUTION.md">模块一技术方案</a> ·
   <a href="docs/MODULE_1_TECHNICAL_ROADMAPS.md">模块一路线图</a> ·
   <a href="docs/PRESENTATION_SCRIPT.md">PPT 汇报文稿</a> ·

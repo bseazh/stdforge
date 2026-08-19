@@ -9,7 +9,8 @@
   "scripts": {
     "start:parser": "node pdf-parser/server.mjs",
     "start:module2": "node module2/std-crawler/serve-demo.mjs",
-    "check": "node --check app.js && node --check pdf-parser/server.mjs && node --check pdf-parser/kb-store.mjs && node --check pdf-parser/app.js && node --check pdf-parser/bilingual.js && node --check KDB/app.js && node --check KDB/assistant.js && node --check module2/std-crawler/serve-demo.mjs && node --check module2/std-crawler/demo-app.js"
+    "check": "node --check app.js && node --check pdf-parser/server.mjs && node --check pdf-parser/kb-store.mjs && node --check pdf-parser/app.js && node --check pdf-parser/bilingual.js && node --check pdf-parser/feishu-mcp-client.mjs && node --check pdf-parser/feishu-approval-client.mjs && node --check packages/config/runtime-config.mjs && node --check packages/contracts/api-envelope.mjs && node --check packages/integrations/feishu/tenant-access-token.mjs && node --check KDB/app.js && node --check KDB/assistant.js && node --check module2/std-crawler/serve-demo.mjs && node --check module2/std-crawler/demo-app.js",
+    "test:p1": "node scripts/test-p1-foundations.mjs"
   },
   "repository": {
     "type": "git",

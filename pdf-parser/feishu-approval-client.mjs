@@ -1,22 +1,12 @@
+import { getTenantAccessToken } from '../packages/integrations/feishu/tenant-access-token.mjs';
+
 const API_BASE = 'https://open.feishu.cn/open-apis';
-const TOKEN_URL = `${API_BASE}/auth/v3/tenant_access_token/internal`;
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, options);
   const body = await response.json().catch(() => ({}));
   if (!response.ok || body.code !== 0) throw new Error(body.msg || `Feishu HTTP ${response.status}`);
   return body.data;
-}
-
-export async function getTenantAccessToken(appId, appSecret) {
-  const response = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ app_id: appId, app_secret: appSecret })
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || body.code !== 0 || !body.tenant_access_token) throw new Error(body.msg || 'Unable to obtain Feishu tenant access token');
-  return body.tenant_access_token;
 }
 
 async function getApprovalDefinition(token, approvalCode) {

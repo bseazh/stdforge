@@ -1,5 +1,6 @@
+import { getTenantAccessToken } from '../packages/integrations/feishu/tenant-access-token.mjs';
+
 const MCP_URL = 'https://mcp.feishu.cn/mcp';
-const TOKEN_URL = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
 
 function contentText(response) {
   return response.result?.content?.map(item => item.text || '').join('\n') || '';
@@ -10,17 +11,6 @@ function parseToolResponse(response) {
   if (response.result?.isError) throw new Error(contentText(response) || 'Feishu MCP tool execution failed');
   const text = contentText(response);
   try { return JSON.parse(text); } catch { return { message: text }; }
-}
-
-async function getTenantAccessToken(appId, appSecret) {
-  const response = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ app_id: appId, app_secret: appSecret })
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || body.code !== 0 || !body.tenant_access_token) throw new Error(body.msg || 'Unable to obtain Feishu tenant access token');
-  return body.tenant_access_token;
 }
 
 async function callTool({ token, toolName, arguments: toolArguments, id }) {
